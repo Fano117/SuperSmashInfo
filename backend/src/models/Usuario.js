@@ -30,14 +30,24 @@ const usuarioSchema = new mongoose.Schema({
   deuda: {
     type: Number,
     default: 0
+  },
+  avatar: {
+    type: String,
+    default: 'mario'
+  },
+  fotoUrl: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
 });
 
 // Virtual para calcular el total de puntos
+// Dojos suman, pendejos/mimidos/castitontos restan, chescos son neutrales
 usuarioSchema.virtual('total').get(function() {
-  return this.dojos + this.pendejos + this.mimidos + this.castitontos + this.chescos;
+  return this.dojos - this.pendejos - this.mimidos - this.castitontos;
+  // chescos no afectan el total
 });
 
 usuarioSchema.set('toJSON', { virtuals: true });

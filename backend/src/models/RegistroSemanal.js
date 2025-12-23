@@ -7,7 +7,7 @@ const registroSemanalSchema = new mongoose.Schema({
     required: true
   },
   semana: {
-    type: Date,
+    type: String,
     required: true
   },
   dojos: {

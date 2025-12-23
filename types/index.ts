@@ -1,5 +1,10 @@
 // Tipos para SuperSmashInfo
 
+export type AvatarId =
+  | 'mario' | 'luigi' | 'peach' | 'yoshi' | 'toad' | 'bowser'
+  | 'link' | 'zelda' | 'samus' | 'kirby' | 'pikachu' | 'fox'
+  | 'falcon' | 'ness' | 'banjo' | 'gamewatch' | 'dk' | 'diddy';
+
 export interface Usuario {
   _id: string;
   nombre: string;
@@ -9,6 +14,8 @@ export interface Usuario {
   castitontos: number;
   chescos: number;
   deuda: number;
+  avatar?: AvatarId;
+  fotoUrl?: string | null;
   total?: number;
   createdAt?: string;
   updatedAt?: string;

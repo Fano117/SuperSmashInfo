@@ -26,7 +26,8 @@ app.get('/health', (req, res) => {
 // Manejo de errores
 app.use(errorHandler);
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+// Iniciar servidor - escucha en todas las interfaces para acceso desde dispositivos moviles
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
+  console.log(`Accede desde tu dispositivo usando: http://192.168.100.99:${PORT}/api`);
 });
