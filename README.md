@@ -1,50 +1,203 @@
-# Welcome to your Expo app 👋
+# SuperSmashInfo - Dojo Smash 2025 🎮
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación de gestión de puntos de juego para Super Smash Bros con temática 8-bit retro.
 
-## Get started
+## 🎯 Características
 
-1. Install dependencies
+- ✅ Registro de conteo semanal de puntos por categoría
+- 🎲 Minijuego de ruleta con sistema de apuestas
+- 📊 Tabla global de clasificación
+- 💰 Sistema de banco y registro de pagos
+- 🎨 Diseño 8-bit inspirado en Super Smash Bros
 
-   ```bash
-   npm install
-   ```
+## 📱 Tecnologías
 
-2. Start the app
+### Frontend
+- React Native con Expo
+- TypeScript
+- Context API para estado global
+- Fuentes pixel: Press Start 2P, VT323
 
-   ```bash
-   npx expo start
-   ```
+### Backend
+- Node.js + Express
+- MongoDB + Mongoose
+- API REST completa
 
-In the output, you'll find options to open the app in a
+## 🚀 Instalación
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Requisitos Previos
+- Node.js 18+
+- MongoDB (local o cloud)
+- Expo CLI
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Backend
 
 ```bash
-npm run reset-project
+cd backend
+npm install
+cp .env.example .env
+# Editar .env con tu conexión MongoDB
+npm run dev
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+El servidor correrá en `http://localhost:3000`
 
-## Learn more
+### Frontend
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm install
+npx expo start
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Opciones:
+- Presiona `i` para iOS
+- Presiona `a` para Android
+- Presiona `w` para web
 
-## Join the community
+## 📦 Estructura del Proyecto
 
-Join our community of developers creating universal apps.
+```
+/
+├── app/                    # Pantallas de la app
+│   └── (tabs)/            # Navegación por tabs
+│       ├── index.tsx      # Inicio
+│       ├── conteo.tsx     # Registro semanal
+│       ├── minijuego.tsx  # Ruleta y apuestas
+│       ├── tabla.tsx      # Tabla global
+│       └── banco.tsx      # Banco Smash
+├── components/            # Componentes reutilizables
+│   ├── SmashButton.tsx   # Botón 8-bit
+│   ├── SmashCard.tsx     # Tarjeta 8-bit
+│   ├── PointInput.tsx    # Input de puntos
+│   └── Ruleta.tsx        # Ruleta animada
+├── constants/            # Constantes y tema
+│   └── smashTheme.ts    # Colores y estilos 8-bit
+├── context/             # Estado global
+│   └── AppContext.tsx
+├── services/            # API services
+│   └── api.ts
+├── types/               # TypeScript types
+│   └── index.ts
+└── backend/             # API Backend
+    └── src/
+        ├── models/      # Modelos MongoDB
+        ├── routes/      # Rutas API
+        └── index.js     # Servidor Express
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 🎮 Categorías de Puntos
+
+- 🏛️ **Dojos**: Puntos principales
+- 💀 **Pendejos**: Penalizaciones
+- 🥤 **Chescos**: Bebidas
+- 💔 **Mimidos**: Mimados
+- ❓ **Castitontos**: Castigos tontos
+
+## 🎨 Paleta de Colores
+
+```javascript
+// Fondos
+primary: '#1a1a2e'      // Azul oscuro profundo
+secondary: '#16213e'    // Azul marino
+tertiary: '#0f3460'     // Azul intenso
+
+// Acentos
+accent: '#e94560'       // Rojo smash
+fire: '#ff6b35'         // Naranja fuego
+dojos: '#ffd700'        // Dorado
+```
+
+## 📡 API Endpoints
+
+### Usuarios
+- `GET /api/usuarios` - Listar usuarios
+- `POST /api/usuarios` - Crear usuario
+- `PUT /api/usuarios/:id/puntos` - Actualizar puntos
+
+### Conteo Semanal
+- `GET /api/conteo-semanal` - Obtener registros
+- `POST /api/conteo-semanal/batch` - Registrar lote
+
+### Tabla Global
+- `GET /api/tabla-global` - Tabla de clasificación
+- `GET /api/tabla-global/exportar` - Exportar Excel
+
+### Banco
+- `GET /api/banco` - Total del banco
+- `POST /api/banco/pago` - Registrar pago
+- `GET /api/banco/usuarios` - Deudas por usuario
+
+### Apuestas
+- `POST /api/apuestas` - Crear apuesta
+- `POST /api/apuestas/:id/resolver` - Resolver apuesta
+
+## 🎯 Uso
+
+### 1. Registrar Conteo Semanal
+1. Ve a la pestaña "CONTEO"
+2. Ingresa puntos para cada usuario
+3. Usa +/- o escribe directamente
+4. Guarda el conteo
+
+### 2. Crear Apuesta
+1. Ve a "APUESTAS"
+2. Selecciona modo (números o integrantes)
+3. Elige participantes y tipo de punto
+4. Crea la apuesta
+5. Gira la ruleta
+
+### 3. Ver Clasificación
+1. Ve a "TABLA"
+2. Visualiza ranking con medallas
+3. Exporta a Excel si necesitas
+
+### 4. Registrar Pagos
+1. Ve a "BANCO"
+2. Selecciona usuario
+3. Ingresa monto
+4. Registra el pago
+
+## 🎨 Diseño 8-Bit
+
+La aplicación usa un diseño retro 8-bit:
+- Fuentes pixeladas (Press Start 2P)
+- Colores vibrantes
+- Bordes rectos sin redondeo
+- Sombras duras (drop shadow)
+- Iconos de categorías emoji
+- Animaciones tipo arcade
+
+## 🛠️ Scripts Disponibles
+
+```bash
+# Frontend
+npm start          # Iniciar Expo
+npm run android    # Correr en Android
+npm run ios        # Correr en iOS
+npm run web        # Correr en web
+
+# Backend
+npm run dev        # Servidor con nodemon
+npm start          # Servidor producción
+```
+
+## 📝 Notas Importantes
+
+- Los puntos pueden ser decimales (0.5, 0.25, etc.)
+- Los puntos pueden ser negativos
+- El total se calcula sumando todas las categorías
+- Las apuestas modifican puntos en tiempo real
+- Los integrantes iniciales son: CHINO, M.N, M.B, FANO
+
+## 🤝 Contribuir
+
+Esta aplicación es para uso personal del grupo de amigos. No se comercializa.
+
+## 📄 Licencia
+
+MIT License - Uso personal
+
+---
+
+**PRESS START** 🎮
+
