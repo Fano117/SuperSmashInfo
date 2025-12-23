@@ -7,63 +7,133 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Image,
-  ActivityIndicator,
   Animated,
   Easing,
 } from 'react-native';
 import { useApp } from '@/context/AppContext';
-import { SmashColors } from '@/constants/theme';
-const YOSHI_BG = require('@/assets/images/yoshi-bg-8bit.png'); // Debes agregar este asset real
 import { Transaccion } from '@/types';
 import * as api from '@/services/api';
 import Avatar8Bit from '@/components/Avatar8Bit';
 
-// Colores tema Yoshi's Island
-const YoshiColors = {
-  green: '#7cb342',
-  lightGreen: '#9ccc65',
-  darkGreen: '#558b2f',
-  sky: '#81d4fa',
-  lightSky: '#b3e5fc',
-  white: '#ffffff',
-  red: '#ef5350',
-  orange: '#ffa726',
-  yellow: '#ffee58',
-  pink: '#f48fb1',
-  brown: '#8d6e63',
-  eggWhite: '#fafafa',
-  eggSpot: '#66bb6a',
+// Colores auténticos de Yoshi's House - Super Mario World SNES
+const YoshiHouseColors = {
+  // Cielo
+  skyTop: '#5890F8',
+  skyBottom: '#98D8F8',
+  // Vegetación
+  grassDark: '#187818',
+  grassLight: '#30A830',
+  grassHighlight: '#58C058',
+  leafGreen: '#28A028',
+  // Casa de Yoshi
+  houseBrown: '#B86820',
+  houseRoof: '#E85820',
+  houseDoor: '#582000',
+  // Tierra
+  dirtBrown: '#C08040',
+  dirtDark: '#985820',
+  // Huevo de Yoshi
+  eggWhite: '#F8F8F8',
+  eggGreen: '#58B858',
+  eggOutline: '#285828',
+  // UI
+  coinYellow: '#F8D830',
+  coinOrange: '#E89820',
+  textWhite: '#FFFFFF',
+  textShadow: '#282828',
+  // Efectos
+  red: '#E82020',
+  pink: '#F898B8',
 };
 
-const YOSHI_EGG = require('@/assets/images/yoshi-egg-8bit.png');
-
-function YoshiEggJump({ style }: { style?: any }) {
-  const jumpAnim = React.useRef(new Animated.Value(0)).current;
+// Componente de huevo de Yoshi estilizado con CSS puro
+function YoshiEgg({ size = 60, spots = true, animated = false, style }: {
+  size?: number;
+  spots?: boolean;
+  animated?: boolean;
+  style?: any;
+}) {
+  const bounceAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(jumpAnim, {
-          toValue: -30,
-          duration: 500,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(jumpAnim, {
-          toValue: 0,
-          duration: 500,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [jumpAnim]);
+    if (animated) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, {
+            toValue: -8,
+            duration: 400,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(bounceAnim, {
+            toValue: 0,
+            duration: 400,
+            easing: Easing.in(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [animated, bounceAnim]);
+
+  const Container = animated ? Animated.View : View;
+  const containerStyle = animated ? { transform: [{ translateY: bounceAnim }] } : {};
 
   return (
-    <Animated.View style={[{ transform: [{ translateY: jumpAnim }] }, style]}>
-      <Image source={YOSHI_EGG} style={{ width: 40, height: 40, resizeMode: 'contain' }} />
-    </Animated.View>
+    <Container style={[containerStyle, style]}>
+      <View style={[styles.yoshiEgg, { width: size, height: size * 1.2 }]}>
+        {/* Cuerpo del huevo */}
+        <View style={[styles.eggBody, {
+          width: size,
+          height: size * 1.2,
+          borderRadius: size / 2,
+        }]}>
+          {/* Brillo */}
+          <View style={[styles.eggShine, {
+            width: size * 0.25,
+            height: size * 0.4,
+            top: size * 0.15,
+            left: size * 0.15,
+            borderRadius: size * 0.15,
+          }]} />
+          {/* Manchas verdes */}
+          {spots && (
+            <>
+              <View style={[styles.eggSpot, {
+                width: size * 0.22,
+                height: size * 0.22,
+                top: size * 0.2,
+                right: size * 0.18,
+                borderRadius: size * 0.11,
+              }]} />
+              <View style={[styles.eggSpot, {
+                width: size * 0.18,
+                height: size * 0.18,
+                top: size * 0.55,
+                left: size * 0.2,
+                borderRadius: size * 0.09,
+              }]} />
+              <View style={[styles.eggSpot, {
+                width: size * 0.15,
+                height: size * 0.15,
+                bottom: size * 0.2,
+                right: size * 0.25,
+                borderRadius: size * 0.075,
+              }]} />
+            </>
+          )}
+        </View>
+      </View>
+    </Container>
+  );
+}
+
+// Componente de moneda estilo SMW
+function SMWCoin({ size = 24 }: { size?: number }) {
+  return (
+    <View style={[styles.coin, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Text style={[styles.coinSymbol, { fontSize: size * 0.6 }]}>$</Text>
+    </View>
   );
 }
 
@@ -122,7 +192,7 @@ export default function BancoScreen() {
   if (loading || cargandoDatos) {
     return (
       <View style={styles.loadingContainer}>
-        <Image source={YOSHI_EGG} style={styles.loadingEgg} />
+        <YoshiEgg size={80} animated />
         <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     );
@@ -130,32 +200,67 @@ export default function BancoScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Patrón de fondo Yoshi */}
-      <Image source={require('@/assets/images/yoshi-bg-8bit.png')} style={styles.bgPattern} resizeMode="repeat" />
-      {/* Nubes decorativas */}
-      <View style={styles.cloudsContainer}>
-        <View style={[styles.cloud, styles.cloud1]} />
-        <View style={[styles.cloud, styles.cloud2]} />
-        <View style={[styles.cloud, styles.cloud3]} />
-      </View>
+      {/* Fondo estilo Yoshi's House */}
+      <View style={styles.background}>
+        {/* Cielo con gradiente */}
+        <View style={styles.sky} />
 
-      {/* Header Yoshi */}
-      <View style={styles.header}>
-        <View style={styles.headerDecor}>
-          <YoshiEggJump style={styles.headerEgg} />
-          <YoshiEggJump style={styles.headerEgg} />
-          <YoshiEggJump style={styles.headerEgg} />
+        {/* Nubes estilo SMW */}
+        <View style={[styles.cloudSMW, { top: 30, left: 20 }]}>
+          <View style={styles.cloudPart} />
+          <View style={[styles.cloudPart, styles.cloudPartMid]} />
+          <View style={styles.cloudPart} />
         </View>
-        <Text style={styles.title}>BANCO SMASH</Text>
-        <Text style={styles.subtitle}>Yoshi's Coin Island</Text>
+        <View style={[styles.cloudSMW, { top: 60, right: 30 }]}>
+          <View style={styles.cloudPart} />
+          <View style={[styles.cloudPart, styles.cloudPartMid]} />
+          <View style={styles.cloudPart} />
+        </View>
+        <View style={[styles.cloudSMW, { top: 20, right: 120 }]}>
+          <View style={[styles.cloudPart, { width: 25, height: 25 }]} />
+          <View style={[styles.cloudPart, styles.cloudPartMid, { width: 30, height: 30 }]} />
+          <View style={[styles.cloudPart, { width: 25, height: 25 }]} />
+        </View>
+
+        {/* Colinas de fondo */}
+        <View style={styles.hillsBack}>
+          <View style={[styles.hillBack, { left: -50 }]} />
+          <View style={[styles.hillBack, { left: 100, height: 100 }]} />
+          <View style={[styles.hillBack, { right: -30, height: 80 }]} />
+        </View>
+
+        {/* Pasto base */}
+        <View style={styles.grassBase}>
+          <View style={styles.grassStripe} />
+          <View style={[styles.grassStripe, styles.grassStripe2]} />
+        </View>
       </View>
 
-      {/* Huevo gigante - Total del banco */}
-      <View style={styles.eggContainer}>
-        <Image source={YOSHI_EGG} style={styles.eggImage} />
-        <View style={styles.eggContentOverlay}>
-          <Text style={styles.eggLabel}>TOTAL</Text>
-          <Text style={styles.eggAmount}>${banco?.total?.toFixed(2) || '0.00'}</Text>
+      {/* Header estilo cartel de madera */}
+      <View style={styles.header}>
+        <View style={styles.woodSign}>
+          <View style={styles.woodSignTop}>
+            <YoshiEgg size={28} animated style={styles.headerEgg} />
+            <Text style={styles.title}>BANCO SMASH</Text>
+            <YoshiEgg size={28} animated style={styles.headerEgg} />
+          </View>
+          <Text style={styles.subtitle}>Yoshi's House</Text>
+        </View>
+      </View>
+
+      {/* Total en huevo gigante */}
+      <View style={styles.totalContainer}>
+        <View style={styles.totalEggWrapper}>
+          <YoshiEgg size={100} spots={true} />
+          <View style={styles.totalOverlay}>
+            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalAmount}>${banco?.total?.toFixed(2) || '0.00'}</Text>
+          </View>
+        </View>
+        <View style={styles.coinsDecor}>
+          <SMWCoin size={20} />
+          <SMWCoin size={24} />
+          <SMWCoin size={20} />
         </View>
       </View>
 
@@ -163,57 +268,68 @@ export default function BancoScreen() {
         {/* Seccion de registro de pago */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionEmoji}>🪙</Text>
+            <SMWCoin size={22} />
             <Text style={styles.sectionTitle}>REGISTRAR PAGO</Text>
           </View>
 
-          {/* Selector de usuario estilo huevos */}
+          {/* Selector de usuario */}
           <View style={styles.userSelector}>
             {usuarios.map((usuario) => (
               <TouchableOpacity
                 key={usuario._id}
                 style={[
-                  styles.userEgg,
-                  usuarioSeleccionado === usuario._id && styles.userEggSelected,
+                  styles.userCard,
+                  usuarioSeleccionado === usuario._id && styles.userCardSelected,
                 ]}
                 onPress={() => setUsuarioSeleccionado(usuario._id)}
               >
-                <Avatar8Bit
-                  avatarId={usuario.avatar || 'yoshi'}
-                  size="small"
-                  fotoUrl={usuario.fotoUrl}
-                />
-                <Text style={styles.userEggName}>{usuario.nombre}</Text>
+                <View style={styles.userEggContainer}>
+                  <YoshiEgg size={32} spots={false} />
+                  <View style={styles.userAvatarOverlay}>
+                    <Avatar8Bit
+                      avatarId={usuario.avatar || 'yoshi'}
+                      size="small"
+                      fotoUrl={usuario.fotoUrl}
+                    />
+                  </View>
+                </View>
+                <Text style={styles.userName}>{usuario.nombre}</Text>
+                {usuarioSeleccionado === usuario._id && (
+                  <View style={styles.selectedIndicator}>
+                    <Text style={styles.selectedText}>OK!</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* Input de monto */}
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Monto:</Text>
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputPrefix}>$</Text>
+          {/* Inputs */}
+          <View style={styles.inputSection}>
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>Monto:</Text>
+              <View style={styles.inputContainer}>
+                <SMWCoin size={18} />
+                <TextInput
+                  style={styles.input}
+                  value={monto}
+                  onChangeText={setMonto}
+                  keyboardType="numeric"
+                  placeholder="0.00"
+                  placeholderTextColor={YoshiHouseColors.grassDark}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>Nota:</Text>
               <TextInput
-                style={styles.input}
-                value={monto}
-                onChangeText={setMonto}
-                keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor={YoshiColors.darkGreen}
+                style={[styles.input, styles.inputWide]}
+                value={descripcion}
+                onChangeText={setDescripcion}
+                placeholder="Opcional"
+                placeholderTextColor={YoshiHouseColors.grassDark}
               />
             </View>
-          </View>
-
-          {/* Input de descripcion */}
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Nota:</Text>
-            <TextInput
-              style={[styles.input, styles.inputWide]}
-              value={descripcion}
-              onChangeText={setDescripcion}
-              placeholder="Opcional"
-              placeholderTextColor={YoshiColors.darkGreen}
-            />
           </View>
 
           {/* Boton de pago */}
@@ -222,23 +338,29 @@ export default function BancoScreen() {
             onPress={handlePago}
             disabled={procesando}
           >
-            <Image source={YOSHI_EGG} style={styles.payButtonEgg} />
+            <YoshiEgg size={24} spots={false} />
             <Text style={styles.payButtonText}>
               {procesando ? 'PROCESANDO...' : 'GUARDAR PAGO'}
             </Text>
-            <Image source={YOSHI_EGG} style={styles.payButtonEgg} />
+            <YoshiEgg size={24} spots={false} />
           </TouchableOpacity>
         </View>
 
         {/* Seccion de deudas */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Image source={YOSHI_EGG} style={styles.sectionEgg} />
+            <YoshiEgg size={20} spots={false} />
             <Text style={styles.sectionTitle}>DEUDAS</Text>
           </View>
-          <View style={styles.deudasList}>
-            {usuarios.map((usuario) => (
-              <View key={usuario._id} style={styles.deudaRow}>
+          <View style={styles.listContainer}>
+            {usuarios.map((usuario, index) => (
+              <View
+                key={usuario._id}
+                style={[
+                  styles.deudaRow,
+                  index === usuarios.length - 1 && styles.lastRow
+                ]}
+              >
                 <View style={styles.deudaInfo}>
                   <Avatar8Bit
                     avatarId={usuario.avatar || 'yoshi'}
@@ -247,15 +369,17 @@ export default function BancoScreen() {
                   />
                   <Text style={styles.deudaNombre}>{usuario.nombre}</Text>
                 </View>
-                <Text
-                  style={[
+                <View style={[
+                  styles.deudaMontoContainer,
+                  usuario.deuda > 0 ? styles.deudaPendienteContainer : styles.deudaPagadaContainer
+                ]}>
+                  <Text style={[
                     styles.deudaMonto,
-                    usuario.deuda > 0 && styles.deudaPendiente,
-                    usuario.deuda === 0 && styles.deudaPagada,
-                  ]}
-                >
-                  ${usuario.deuda.toFixed(2)}
-                </Text>
+                    usuario.deuda > 0 ? styles.deudaPendiente : styles.deudaPagada,
+                  ]}>
+                    ${usuario.deuda.toFixed(2)}
+                  </Text>
+                </View>
               </View>
             ))}
           </View>
@@ -264,24 +388,30 @@ export default function BancoScreen() {
         {/* Historial de transacciones */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Image source={YOSHI_EGG} style={styles.sectionEgg} />
+            <YoshiEgg size={20} spots={false} />
             <Text style={styles.sectionTitle}>HISTORIAL</Text>
           </View>
-          <View style={styles.historialList}>
+          <View style={styles.listContainer}>
             {historial.length === 0 ? (
               <View style={styles.emptyState}>
-                <Image source={YOSHI_EGG} style={styles.emptyEgg} />
+                <YoshiEgg size={50} animated />
                 <Text style={styles.emptyText}>Sin transacciones</Text>
               </View>
             ) : (
-              historial.slice(0, 10).map((trans) => {
+              historial.slice(0, 10).map((trans, index) => {
                 const usuarioObj = typeof trans.usuario === 'object' ? trans.usuario : null;
                 const usuarioNombre = usuarioObj ? usuarioObj.nombre : 'Usuario';
                 const fecha = trans.createdAt
                   ? new Date(trans.createdAt).toLocaleDateString()
                   : '';
                 return (
-                  <View key={trans._id} style={styles.historialRow}>
+                  <View
+                    key={trans._id}
+                    style={[
+                      styles.historialRow,
+                      index === Math.min(historial.length - 1, 9) && styles.lastRow
+                    ]}
+                  >
                     <View style={styles.historialAvatar}>
                       <Avatar8Bit
                         avatarId={usuarioObj?.avatar || 'yoshi'}
@@ -296,15 +426,17 @@ export default function BancoScreen() {
                         <Text style={styles.historialDesc}>{trans.descripcion}</Text>
                       )}
                     </View>
-                    <Text
-                      style={[
+                    <View style={[
+                      styles.historialMontoContainer,
+                      trans.tipo === 'pago' ? styles.montoPagoContainer : styles.montoRetiroContainer
+                    ]}>
+                      <Text style={[
                         styles.historialMonto,
-                        trans.tipo === 'pago' && styles.montoPago,
-                        trans.tipo === 'retiro' && styles.montoRetiro,
-                      ]}
-                    >
-                      {trans.tipo === 'pago' ? '+' : '-'}${trans.monto.toFixed(2)}
-                    </Text>
+                        trans.tipo === 'pago' ? styles.montoPago : styles.montoRetiro,
+                      ]}>
+                        {trans.tipo === 'pago' ? '+' : '-'}${trans.monto.toFixed(2)}
+                      </Text>
+                    </View>
                   </View>
                 );
               })
@@ -313,393 +445,440 @@ export default function BancoScreen() {
         </View>
       </ScrollView>
 
-      {/* Colinas decorativas */}
-      <View style={styles.hillsContainer}>
-        <View style={[styles.hill, styles.hill1]} />
-        <View style={[styles.hill, styles.hill2]} />
+      {/* Decoración inferior - Tubería estilo SMW */}
+      <View style={styles.bottomDecor}>
+        <View style={styles.pipeLeft}>
+          <View style={styles.pipeTop} />
+          <View style={styles.pipeBody} />
+        </View>
+        <View style={styles.groundStripe} />
+        <View style={styles.pipeRight}>
+          <View style={styles.pipeTop} />
+          <View style={styles.pipeBody} />
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-    loadingEgg: {
-      width: 60,
-      height: 60,
-      marginBottom: 8,
-      resizeMode: 'contain',
-    },
-    headerEgg: {
-      width: 32,
-      height: 32,
-      marginHorizontal: 4,
-      resizeMode: 'contain',
-    },
-    eggImage: {
-      width: 120,
-      height: 120,
-      alignSelf: 'center',
-      resizeMode: 'contain',
-    },
-    eggContentOverlay: {
-      position: 'absolute',
-      top: 40,
-      left: 0,
-      right: 0,
-      alignItems: 'center',
-    },
-    bgPattern: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: -1,
-      opacity: 0.18,
-    },
-    deudaEgg: {
-      width: 24,
-      height: 24,
-      marginRight: 6,
-      resizeMode: 'contain',
-    },
-    emptyEgg: {
-      width: 40,
-      height: 40,
-      marginBottom: 8,
-      resizeMode: 'contain',
-    },
   container: {
     flex: 1,
-    backgroundColor: YoshiColors.sky,
+    backgroundColor: YoshiHouseColors.skyBottom,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: YoshiColors.sky,
+  // Fondo
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
-  loadingEmoji: {
-    fontSize: 60,
-  },
-  loadingText: {
-    color: YoshiColors.darkGreen,
-    fontSize: 16,
-    marginTop: 16,
-    fontWeight: 'bold',
-  },
-  cloudsContainer: {
+  sky: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 100,
+    height: '60%',
+    backgroundColor: YoshiHouseColors.skyTop,
   },
-  cloud: {
+  // Nubes SMW
+  cloudSMW: {
     position: 'absolute',
-    backgroundColor: YoshiColors.white,
-    borderRadius: 50,
-    opacity: 0.8,
-  },
-  cloud1: {
-    width: 80,
-    height: 40,
-    top: 20,
-    left: 20,
-  },
-  cloud2: {
-    width: 60,
-    height: 30,
-    top: 40,
-    right: 40,
-  },
-  cloud3: {
-    width: 50,
-    height: 25,
-    top: 10,
-    right: 120,
-  },
-  header: {
-    backgroundColor: YoshiColors.green,
-    padding: 16,
-    alignItems: 'center',
-    borderBottomWidth: 4,
-    borderBottomColor: YoshiColors.darkGreen,
-    zIndex: 1,
-  },
-  headerDecor: {
     flexDirection: 'row',
-    gap: 20,
-    marginBottom: 8,
+    alignItems: 'flex-end',
   },
-  decorEmoji: {
-    fontSize: 28,
+  cloudPart: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#D0D0D0',
+  },
+  cloudPartMid: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginHorizontal: -10,
+    marginBottom: 5,
+  },
+  // Colinas
+  hillsBack: {
+    position: 'absolute',
+    bottom: 120,
+    left: 0,
+    right: 0,
+    height: 150,
+    flexDirection: 'row',
+  },
+  hillBack: {
+    position: 'absolute',
+    bottom: 0,
+    width: 200,
+    height: 120,
+    backgroundColor: YoshiHouseColors.grassLight,
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 100,
+  },
+  // Pasto
+  grassBase: {
+    position: 'absolute',
+    bottom: 50,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: YoshiHouseColors.grassDark,
+  },
+  grassStripe: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: YoshiHouseColors.grassHighlight,
+  },
+  grassStripe2: {
+    top: 20,
+    height: 4,
+    backgroundColor: YoshiHouseColors.grassLight,
+  },
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: YoshiHouseColors.skyBottom,
+  },
+  loadingText: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 18,
+    marginTop: 16,
+    fontWeight: 'bold',
+    textShadowColor: YoshiHouseColors.textWhite,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 0,
+  },
+  // Header
+  header: {
+    zIndex: 10,
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  woodSign: {
+    backgroundColor: YoshiHouseColors.houseBrown,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 4,
+    borderColor: YoshiHouseColors.dirtDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 0,
+    elevation: 5,
+  },
+  woodSignTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  headerEgg: {
+    marginHorizontal: 4,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: YoshiColors.white,
-    letterSpacing: 3,
-    textShadowColor: YoshiColors.darkGreen,
+    color: YoshiHouseColors.textWhite,
+    letterSpacing: 2,
+    textShadowColor: YoshiHouseColors.textShadow,
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 0,
   },
   subtitle: {
-    fontSize: 12,
-    color: YoshiColors.lightGreen,
-    marginTop: 4,
+    fontSize: 11,
+    color: YoshiHouseColors.coinYellow,
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 1,
   },
-  eggContainer: {
+  // Total
+  totalContainer: {
     alignItems: 'center',
-    marginVertical: 16,
-    zIndex: 1,
+    marginVertical: 12,
+    zIndex: 10,
   },
-  egg: {
-    width: 140,
-    height: 160,
-    backgroundColor: YoshiColors.eggWhite,
-    borderRadius: 70,
-    borderBottomLeftRadius: 60,
-    borderBottomRightRadius: 60,
+  totalEggWrapper: {
+    position: 'relative',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  totalOverlay: {
+    position: 'absolute',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: YoshiColors.darkGreen,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
+    top: 30,
+  },
+  totalLabel: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  totalAmount: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  coinsDecor: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  // Huevo de Yoshi
+  yoshiEgg: {
     position: 'relative',
   },
-  eggSpot1: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    backgroundColor: YoshiColors.eggSpot,
-    borderRadius: 10,
-    top: 30,
-    left: 25,
+  eggBody: {
+    backgroundColor: YoshiHouseColors.eggWhite,
+    borderWidth: 3,
+    borderColor: YoshiHouseColors.eggOutline,
+    overflow: 'hidden',
   },
-  eggSpot2: {
+  eggShine: {
     position: 'absolute',
-    width: 16,
-    height: 16,
-    backgroundColor: YoshiColors.eggSpot,
-    borderRadius: 8,
-    top: 50,
-    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
-  eggSpot3: {
+  eggSpot: {
     position: 'absolute',
-    width: 12,
-    height: 12,
-    backgroundColor: YoshiColors.eggSpot,
-    borderRadius: 6,
-    bottom: 40,
-    left: 35,
+    backgroundColor: YoshiHouseColors.eggGreen,
+    borderWidth: 1,
+    borderColor: YoshiHouseColors.eggOutline,
   },
-  eggContent: {
+  // Moneda
+  coin: {
+    backgroundColor: YoshiHouseColors.coinYellow,
+    borderWidth: 2,
+    borderColor: YoshiHouseColors.coinOrange,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  eggLabel: {
-    color: YoshiColors.darkGreen,
-    fontSize: 12,
+  coinSymbol: {
+    color: YoshiHouseColors.coinOrange,
     fontWeight: 'bold',
-    letterSpacing: 2,
   },
-  eggAmount: {
-    color: YoshiColors.darkGreen,
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
+  // Scroll
   scrollView: {
     flex: 1,
-    zIndex: 1,
+    zIndex: 5,
   },
   scrollContent: {
     padding: 12,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
+  // Secciones
   section: {
-    backgroundColor: YoshiColors.lightGreen,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     marginBottom: 12,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 3,
-    borderColor: YoshiColors.darkGreen,
+    borderColor: YoshiHouseColors.grassDark,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 0,
+    elevation: 3,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: YoshiColors.green,
-    padding: 10,
-  },
-  sectionEmoji: {
-    fontSize: 20,
+    gap: 10,
+    backgroundColor: YoshiHouseColors.grassLight,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: YoshiHouseColors.grassDark,
   },
   sectionTitle: {
-    color: YoshiColors.white,
-    fontSize: 16,
+    color: YoshiHouseColors.textWhite,
+    fontSize: 14,
     fontWeight: 'bold',
     letterSpacing: 2,
+    textShadowColor: YoshiHouseColors.grassDark,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 0,
   },
+  // Selector de usuario
   userSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: 12,
     gap: 10,
     justifyContent: 'center',
-    backgroundColor: YoshiColors.lightSky,
+    backgroundColor: YoshiHouseColors.skyBottom,
   },
-  userEgg: {
-    width: 70,
-    height: 80,
-    backgroundColor: YoshiColors.eggWhite,
-    borderRadius: 35,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    justifyContent: 'center',
+  userCard: {
     alignItems: 'center',
+    padding: 8,
+    backgroundColor: YoshiHouseColors.eggWhite,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: YoshiHouseColors.grassLight,
+    minWidth: 70,
+  },
+  userCardSelected: {
+    backgroundColor: YoshiHouseColors.coinYellow,
+    borderColor: YoshiHouseColors.coinOrange,
     borderWidth: 3,
-    borderColor: YoshiColors.darkGreen,
   },
-  userEggSelected: {
-    backgroundColor: YoshiColors.yellow,
-    borderColor: YoshiColors.orange,
+  userEggContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  userEggText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: YoshiColors.darkGreen,
+  userAvatarOverlay: {
+    position: 'absolute',
+    top: 2,
   },
-  userEggName: {
-    fontSize: 10,
-    color: YoshiColors.darkGreen,
+  userName: {
+    fontSize: 9,
+    color: YoshiHouseColors.grassDark,
     marginTop: 4,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: YoshiHouseColors.grassLight,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  selectedText: {
+    color: YoshiHouseColors.textWhite,
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  // Inputs
+  inputSection: {
+    backgroundColor: YoshiHouseColors.skyBottom,
+    paddingVertical: 8,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: YoshiColors.lightSky,
-    gap: 12,
+    paddingVertical: 6,
+    gap: 10,
   },
   inputLabel: {
-    color: YoshiColors.darkGreen,
-    fontSize: 14,
+    color: YoshiHouseColors.grassDark,
+    fontSize: 13,
     fontWeight: 'bold',
-    width: 80,
+    width: 60,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-  },
-  inputPrefix: {
-    color: YoshiColors.darkGreen,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 4,
+    gap: 6,
   },
   input: {
     flex: 1,
-    backgroundColor: YoshiColors.white,
-    borderWidth: 3,
-    borderColor: YoshiColors.green,
-    borderRadius: 12,
-    color: YoshiColors.darkGreen,
-    padding: 10,
-    fontSize: 16,
+    backgroundColor: YoshiHouseColors.textWhite,
+    borderWidth: 2,
+    borderColor: YoshiHouseColors.grassLight,
+    borderRadius: 8,
+    color: YoshiHouseColors.grassDark,
+    padding: 8,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   inputWide: {
     flex: 1,
   },
+  // Botón de pago
   payButton: {
     flexDirection: 'row',
-    backgroundColor: YoshiColors.orange,
-    padding: 14,
+    backgroundColor: YoshiHouseColors.houseRoof,
+    padding: 12,
     margin: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 3,
-    borderColor: YoshiColors.brown,
+    borderColor: YoshiHouseColors.houseBrown,
   },
   payButtonDisabled: {
-    backgroundColor: YoshiColors.brown,
-  },
-  payButtonEmoji: {
-    fontSize: 20,
+    backgroundColor: YoshiHouseColors.dirtBrown,
+    opacity: 0.7,
   },
   payButtonText: {
-    color: YoshiColors.white,
-    fontSize: 16,
+    color: YoshiHouseColors.textWhite,
+    fontSize: 14,
     fontWeight: 'bold',
-    letterSpacing: 2,
-    textShadowColor: YoshiColors.brown,
+    letterSpacing: 1,
+    textShadowColor: YoshiHouseColors.textShadow,
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 0,
   },
-  deudasList: {
-    backgroundColor: YoshiColors.lightSky,
+  // Listas
+  listContainer: {
+    backgroundColor: YoshiHouseColors.skyBottom,
   },
   deudaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 2,
-    borderBottomColor: YoshiColors.green,
+    borderBottomColor: YoshiHouseColors.grassLight,
+  },
+  lastRow: {
+    borderBottomWidth: 0,
   },
   deudaInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  deudaEmoji: {
-    fontSize: 20,
+    gap: 10,
   },
   deudaNombre: {
-    color: YoshiColors.darkGreen,
-    fontSize: 16,
+    color: YoshiHouseColors.grassDark,
+    fontSize: 14,
     fontWeight: 'bold',
   },
+  deudaMontoContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 2,
+  },
+  deudaPendienteContainer: {
+    backgroundColor: '#FFE0E0',
+    borderColor: YoshiHouseColors.red,
+  },
+  deudaPagadaContainer: {
+    backgroundColor: '#E0FFE0',
+    borderColor: YoshiHouseColors.grassLight,
+  },
   deudaMonto: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   deudaPendiente: {
-    color: YoshiColors.red,
+    color: YoshiHouseColors.red,
   },
   deudaPagada: {
-    color: YoshiColors.darkGreen,
+    color: YoshiHouseColors.grassDark,
   },
-  historialList: {
-    backgroundColor: YoshiColors.lightSky,
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyEmoji: {
-    fontSize: 40,
-  },
-  emptyText: {
-    color: YoshiColors.darkGreen,
-    fontSize: 14,
-    marginTop: 8,
-  },
+  // Historial
   historialRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 2,
-    borderBottomColor: YoshiColors.green,
+    borderBottomColor: YoshiHouseColors.grassLight,
   },
   historialAvatar: {
     marginRight: 10,
@@ -708,52 +887,109 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   historialNombre: {
-    color: YoshiColors.darkGreen,
-    fontSize: 14,
+    color: YoshiHouseColors.grassDark,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   historialFecha: {
-    color: YoshiColors.darkGreen,
+    color: YoshiHouseColors.grassDark,
     fontSize: 10,
     opacity: 0.7,
   },
   historialDesc: {
-    color: YoshiColors.darkGreen,
+    color: YoshiHouseColors.grassDark,
     fontSize: 10,
     fontStyle: 'italic',
   },
+  historialMontoContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 2,
+  },
+  montoPagoContainer: {
+    backgroundColor: '#E0FFE0',
+    borderColor: YoshiHouseColors.grassLight,
+  },
+  montoRetiroContainer: {
+    backgroundColor: '#FFE0E0',
+    borderColor: YoshiHouseColors.red,
+  },
   historialMonto: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   montoPago: {
-    color: YoshiColors.darkGreen,
+    color: YoshiHouseColors.grassDark,
   },
   montoRetiro: {
-    color: YoshiColors.red,
+    color: YoshiHouseColors.red,
   },
-  hillsContainer: {
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyText: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 14,
+    marginTop: 12,
+    fontWeight: 'bold',
+  },
+  // Decoración inferior
+  bottomDecor: {
     position: 'absolute',
     bottom: 50,
     left: 0,
     right: 0,
-    height: 80,
-  },
-  hill: {
-    position: 'absolute',
-    backgroundColor: YoshiColors.lightGreen,
-    borderTopLeftRadius: 100,
-    borderTopRightRadius: 100,
-    bottom: 0,
-  },
-  hill1: {
-    width: 200,
     height: 60,
-    left: -30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    zIndex: 1,
   },
-  hill2: {
-    width: 180,
-    height: 50,
-    right: -20,
+  groundStripe: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: YoshiHouseColors.dirtBrown,
+    borderTopWidth: 3,
+    borderTopColor: YoshiHouseColors.grassDark,
+  },
+  pipeLeft: {
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  pipeRight: {
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  pipeTop: {
+    width: 50,
+    height: 15,
+    backgroundColor: YoshiHouseColors.grassLight,
+    borderWidth: 2,
+    borderColor: YoshiHouseColors.grassDark,
+    borderRadius: 3,
+  },
+  pipeBody: {
+    width: 40,
+    height: 40,
+    backgroundColor: YoshiHouseColors.grassLight,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: YoshiHouseColors.grassDark,
+  },
+  // Estilos adicionales para payButtonEgg
+  payButtonEgg: {
+    width: 24,
+    height: 24,
+  },
+  sectionEgg: {
+    width: 20,
+    height: 20,
   },
 });

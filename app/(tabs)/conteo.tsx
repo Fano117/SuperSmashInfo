@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,13 +11,14 @@ import {
   TextInput,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '@/context/AppContext';
 import FormularioPuntos from '@/components/FormularioPuntos';
 import Avatar8Bit, { AVATARES_DISPONIBLES } from '@/components/Avatar8Bit';
 import { SmashColors } from '@/constants/theme';
 import * as api from '@/services/api';
-import { Usuario, AvatarId } from '@/types';
+import { Usuario, AvatarId, RegistroSemanal } from '@/types';
 
 // Colores tema Mario/Yoshi
 const MarioColors = {
@@ -28,6 +29,9 @@ const MarioColors = {
   white: '#ffffff',
   brown: '#5c3c0d',
 };
+
+// Key para AsyncStorage
+const CONTEO_STORAGE_KEY = 'conteo_semanal_puntos';
 
 
 export default function ConteoScreen() {
@@ -64,6 +68,54 @@ export default function ConteoScreen() {
   const [avatarSeleccionado, setAvatarSeleccionado] = useState<AvatarId>('mario');
   const [fotoPersonalizada, setFotoPersonalizada] = useState<string | null>(null);
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+
+  // Estados para historial de semanas
+  const [historialSemanas, setHistorialSemanas] = useState<RegistroSemanal[]>([]);
+
+  // Cargar datos guardados al iniciar
+  useEffect(() => {
+    const cargarDatosGuardados = async () => {
+      try {
+        const datosGuardados = await AsyncStorage.getItem(CONTEO_STORAGE_KEY);
+        if (datosGuardados) {
+          const parsed = JSON.parse(datosGuardados);
+          // Solo cargar si es de la misma semana
+          if (parsed.semana === semana && parsed.puntos) {
+            setPuntosUsuarios(parsed.puntos);
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar datos guardados:', error);
+      }
+    };
+    cargarDatosGuardados();
+  }, [semana]);
+
+  // Cargar historial de las últimas 2 semanas
+  useEffect(() => {
+    const cargarHistorial = async () => {
+      try {
+        const historial = await api.getUltimasDosSemanas();
+        setHistorialSemanas(historial);
+      } catch (error) {
+        console.error('Error al cargar historial:', error);
+      }
+    };
+    cargarHistorial();
+  }, []);
+
+  // Guardar datos cuando cambien los puntos
+  const guardarDatosLocal = useCallback(async (puntos: typeof puntosUsuarios) => {
+    try {
+      await AsyncStorage.setItem(CONTEO_STORAGE_KEY, JSON.stringify({
+        semana,
+        puntos,
+        timestamp: Date.now(),
+      }));
+    } catch (error) {
+      console.error('Error al guardar datos localmente:', error);
+    }
+  }, [semana]);
 
   const handlePuntosChange = (
     usuarioId: string,
@@ -107,6 +159,11 @@ export default function ConteoScreen() {
       await api.registrarConteoBatch(semana, registros);
       await refreshUsuarios();
       setPuntosUsuarios({});
+      // Limpiar datos guardados localmente después de enviar exitosamente
+      await AsyncStorage.removeItem(CONTEO_STORAGE_KEY);
+      // Recargar historial
+      const historial = await api.getUltimasDosSemanas();
+      setHistorialSemanas(historial);
       Alert.alert(
         'COMPLETE!',
         `Se registraron ${registros.length} conteos para la semana ${semana}`,
@@ -229,38 +286,28 @@ export default function ConteoScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header con tema Mario */}
+      {/* Header compacto con tema Mario */}
       <View style={styles.header}>
-        <View style={styles.headerDecor}>
-          <Text style={styles.decorEmoji}>🍄</Text>
-          <Text style={styles.decorEmoji}>⭐</Text>
-          <Text style={styles.decorEmoji}>🟢</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.title}>CONTEO</Text>
+            <Text style={styles.subtitle}>{semana}</Text>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setModalNuevoUsuario(true)}
+            >
+              <Text style={styles.actionButtonEmoji}>➕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setModalGestionUsuarios(true)}
+            >
+              <Text style={styles.actionButtonEmoji}>👥</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={styles.title}>CONTEO SEMANAL</Text>
-        <Text style={styles.subtitle}>Semana: {semana}</Text>
-
-        {/* Botones de accion */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setModalNuevoUsuario(true)}
-          >
-            <Text style={styles.actionButtonEmoji}>➕</Text>
-            <Text style={styles.actionButtonText}>NUEVO</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setModalGestionUsuarios(true)}
-          >
-            <Text style={styles.actionButtonEmoji}>👥</Text>
-            <Text style={styles.actionButtonText}>USUARIOS</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Bloque de interrogacion decorativo */}
-      <View style={styles.questionBlock}>
-        <Text style={styles.questionBlockText}>?</Text>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -280,6 +327,8 @@ export default function ConteoScreen() {
             <FormularioPuntos
               key={usuario._id}
               nombreUsuario={usuario.nombre}
+              avatar={usuario.avatar}
+              fotoUrl={usuario.fotoUrl}
               valoresIniciales={puntosUsuarios[usuario._id] || {
                 dojos: 0,
                 pendejos: 0,
@@ -292,28 +341,87 @@ export default function ConteoScreen() {
             />
           ))
         )}
+
+        {/* Tabla de Historial de Semanas */}
+        {historialSemanas.length > 0 && (
+          <View style={styles.historialContainer}>
+            <View style={styles.historialHeader}>
+              <Text style={styles.historialTitle}>📊 HISTORIAL RECIENTE</Text>
+            </View>
+
+            {/* Agrupar por semana */}
+            {(() => {
+              const semanas = [...new Set(historialSemanas.map(r => r.semana))].sort().reverse();
+              return semanas.map((sem) => {
+                const registrosSemana = historialSemanas.filter(r => r.semana === sem);
+                return (
+                  <View key={sem} style={styles.semanaBlock}>
+                    <View style={styles.semanaHeader}>
+                      <Text style={styles.semanaTitle}>{sem}</Text>
+                      <Text style={styles.semanaSubtitle}>
+                        {sem === semana ? '(Actual)' : '(Anterior)'}
+                      </Text>
+                    </View>
+                    <View style={styles.historialTable}>
+                      <View style={styles.historialTableHeader}>
+                        <Text style={[styles.historialCell, styles.historialCellNombre]}>Jugador</Text>
+                        <Text style={styles.historialCell}>🏆</Text>
+                        <Text style={styles.historialCell}>💀</Text>
+                        <Text style={styles.historialCell}>😢</Text>
+                        <Text style={styles.historialCell}>🤡</Text>
+                        <Text style={styles.historialCell}>🥤</Text>
+                      </View>
+                      {registrosSemana.map((registro) => {
+                        const usuarioId = typeof registro.usuario === 'string' ? registro.usuario : registro.usuario._id;
+                        const usuario = usuarios.find(u => u._id === usuarioId);
+                        return (
+                          <View key={registro._id} style={styles.historialTableRow}>
+                            <Text style={[styles.historialCell, styles.historialCellNombre]} numberOfLines={1}>
+                              {usuario?.nombre || '???'}
+                            </Text>
+                            <Text style={[styles.historialCell, styles.historialCellValue]}>
+                              {registro.dojos || 0}
+                            </Text>
+                            <Text style={[styles.historialCell, styles.historialCellValue]}>
+                              {registro.pendejos || 0}
+                            </Text>
+                            <Text style={[styles.historialCell, styles.historialCellValue]}>
+                              {registro.mimidos || 0}
+                            </Text>
+                            <Text style={[styles.historialCell, styles.historialCellValue]}>
+                              {registro.castitontos || 0}
+                            </Text>
+                            <Text style={[styles.historialCell, styles.historialCellValue]}>
+                              {registro.chescos || 0}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              });
+            })()}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Boton guardar estilo Mario */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, guardando && styles.saveButtonDisabled]}
-          onPress={handleGuardar}
-          disabled={guardando}
-        >
-          <Text style={styles.saveButtonEmoji}>🌟</Text>
-          <Text style={styles.saveButtonText}>
-            {guardando ? 'GUARDANDO...' : 'GUARDAR CONTEO'}
+      {/* Tuberia boton guardar - Esquina inferior derecha */}
+      <TouchableOpacity
+        style={[styles.pipeButton, guardando && styles.pipeButtonDisabled]}
+        onPress={handleGuardar}
+        disabled={guardando}
+        activeOpacity={0.8}
+      >
+        <View style={styles.pipeTop}>
+          <Text style={styles.pipeButtonText}>
+            {guardando ? '...' : 'GUARDAR'}
           </Text>
-          <Text style={styles.saveButtonEmoji}>🌟</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Decoracion inferior - Tuberia */}
-      <View style={styles.pipeDecor}>
-        <View style={styles.pipeTop} />
-        <View style={styles.pipeBody} />
-      </View>
+        </View>
+        <View style={styles.pipeBody}>
+          <Text style={styles.pipeButtonEmoji}>{guardando ? '⏳' : '💾'}</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Modal: Nuevo Usuario */}
       <Modal
@@ -550,73 +658,49 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: MarioColors.red,
-    padding: 16,
-    alignItems: 'center',
-    borderBottomWidth: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 3,
     borderBottomColor: MarioColors.brown,
   },
-  headerDecor: {
+  headerRow: {
     flexDirection: 'row',
-    gap: 20,
-    marginVertical: 4,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  decorEmoji: {
-    fontSize: 20,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: MarioColors.yellow,
-    letterSpacing: 3,
+    letterSpacing: 2,
     textShadowColor: '#000',
-    textShadowOffset: { width: 2, height: 2 },
+    textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 0,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: MarioColors.white,
-    marginTop: 4,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: 8,
   },
   actionButton: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: MarioColors.yellow,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: MarioColors.brown,
-    gap: 6,
   },
   actionButtonEmoji: {
     fontSize: 16,
-  },
-  actionButtonText: {
-    color: MarioColors.brown,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  questionBlock: {
-    position: 'absolute',
-    top: 100,
-    right: 20,
-    width: 40,
-    height: 40,
-    backgroundColor: MarioColors.yellow,
-    borderWidth: 3,
-    borderColor: MarioColors.brown,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  questionBlockText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: MarioColors.brown,
   },
   scrollView: {
     flex: 1,
@@ -652,64 +736,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 80,
-    left: 0,
-    right: 0,
-    padding: 16,
-  },
-  saveButton: {
-    backgroundColor: MarioColors.green,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-    borderWidth: 4,
-    borderColor: MarioColors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 0,
-    elevation: 8,
-    gap: 12,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#666',
-    borderColor: '#888',
-  },
-  saveButtonText: {
-    color: MarioColors.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 2,
-    textShadowColor: '#000',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 0,
-  },
-  saveButtonEmoji: {
-    fontSize: 24,
-  },
-  pipeDecor: {
+  pipeButton: {
     position: 'absolute',
     bottom: 0,
-    left: 30,
+    left: 16,
     alignItems: 'center',
+    zIndex: 100,
+  },
+  pipeButtonDisabled: {
+    opacity: 0.6,
   },
   pipeTop: {
-    width: 50,
-    height: 20,
+    width: 90,
+    height: 36,
     backgroundColor: MarioColors.green,
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: '#2d5a2e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 0,
+    elevation: 8,
   },
   pipeBody: {
-    width: 40,
-    height: 60,
+    width: 70,
+    height: 80,
     backgroundColor: MarioColors.green,
-    borderLeftWidth: 3,
-    borderRightWidth: 3,
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderBottomWidth: 0,
     borderColor: '#2d5a2e',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pipeButtonText: {
+    color: MarioColors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    textShadowColor: '#000',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 0,
+  },
+  pipeButtonEmoji: {
+    fontSize: 32,
   },
   // Estilos de Modal
   modalOverlay: {
@@ -918,6 +992,83 @@ const styles = StyleSheet.create({
   selectPhotoButtonText: {
     color: MarioColors.brown,
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Estilos Historial
+  historialContainer: {
+    marginHorizontal: 12,
+    marginTop: 24,
+    marginBottom: 80,
+  },
+  historialHeader: {
+    backgroundColor: MarioColors.brown,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: MarioColors.yellow,
+    borderBottomWidth: 0,
+  },
+  historialTitle: {
+    color: MarioColors.yellow,
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+  },
+  semanaBlock: {
+    marginBottom: 12,
+  },
+  semanaHeader: {
+    backgroundColor: MarioColors.red,
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 3,
+    borderColor: MarioColors.brown,
+    borderBottomWidth: 0,
+  },
+  semanaTitle: {
+    color: MarioColors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  semanaSubtitle: {
+    color: MarioColors.yellow,
+    fontSize: 10,
+  },
+  historialTable: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 3,
+    borderColor: MarioColors.brown,
+  },
+  historialTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: MarioColors.green,
+    borderBottomWidth: 2,
+    borderBottomColor: MarioColors.brown,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  historialTableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  historialCell: {
+    flex: 1,
+    color: MarioColors.white,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  historialCellNombre: {
+    flex: 2,
+    textAlign: 'left',
+    fontWeight: 'bold',
+  },
+  historialCellValue: {
+    color: MarioColors.yellow,
     fontWeight: 'bold',
   },
 });

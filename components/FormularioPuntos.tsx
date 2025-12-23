@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { SmashColors, CategoryIcons } from '@/constants/theme';
-import { TipoPunto } from '@/types';
+import { TipoPunto, Usuario, AvatarId } from '@/types';
+import Avatar8Bit from './Avatar8Bit';
 
 interface FormularioPuntosProps {
   nombreUsuario: string;
+  avatar?: AvatarId;
+  fotoUrl?: string | null;
   valoresIniciales?: {
     dojos: number;
     pendejos: number;
@@ -60,12 +63,19 @@ const categorias: { key: TipoPunto; label: string; icon: string; color: string }
 
 export default function FormularioPuntos({
   nombreUsuario,
+  avatar,
+  fotoUrl,
   valoresIniciales = { dojos: 0, pendejos: 0, mimidos: 0, castitontos: 0, chescos: 0 },
   onChange,
   theme = 'mario',
 }: FormularioPuntosProps) {
   const [puntos, setPuntos] = useState(valoresIniciales);
   const colors = themeColors[theme];
+
+  // Sincronizar estado cuando valoresIniciales cambie (ej: después de guardar)
+  useEffect(() => {
+    setPuntos(valoresIniciales);
+  }, [valoresIniciales.dojos, valoresIniciales.pendejos, valoresIniciales.mimidos, valoresIniciales.castitontos, valoresIniciales.chescos]);
 
   const handleChange = (key: TipoPunto, delta: number) => {
     const nuevoValor = Math.round((puntos[key] + delta) * 100) / 100;
@@ -84,11 +94,14 @@ export default function FormularioPuntos({
   return (
     <View style={[styles.container, { borderColor: colors.border }]}>
       <View style={[styles.header, { backgroundColor: colors.border }]}>
-        <Text style={styles.headerText}>{nombreUsuario}</Text>
-        {theme === 'mario' && <Text style={styles.themeEmoji}>🍄</Text>}
-        {theme === 'metroid' && <Text style={styles.themeEmoji}>🔫</Text>}
-        {theme === 'banjo' && <Text style={styles.themeEmoji}>🐻</Text>}
-        {theme === 'gamewatch' && <Text style={styles.themeEmoji}>🎮</Text>}
+        <View style={styles.headerContent}>
+          <Avatar8Bit
+            avatarId={avatar || 'mario'}
+            size="small"
+            fotoUrl={fotoUrl}
+          />
+          <Text style={styles.headerText}>{nombreUsuario}</Text>
+        </View>
       </View>
 
       {categorias.map((cat) => (
@@ -169,6 +182,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   headerText: {
     color: SmashColors.textWhite,
