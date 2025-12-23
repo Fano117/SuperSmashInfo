@@ -1,13 +1,11 @@
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { SmashColors, SmashSpacing, CategoryLabels } from '@/constants/smashTheme';
 import SmashCard from '@/components/SmashCard';
 import SmashButton from '@/components/SmashButton';
-import { getTablaGlobal, exportarExcel } from '@/services/api';
+import { getTablaGlobal } from '@/services/api';
 import { Usuario } from '@/types';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 
 export default function TablaScreen() {
   const { usuarios, loading: contextLoading } = useApp();
@@ -41,26 +39,12 @@ export default function TablaScreen() {
   const handleExportar = async () => {
     try {
       setExportando(true);
-      const blob = await exportarExcel();
-      
-      // Convert blob to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
-        const base64 = base64data.split(',')[1];
-        
-        // Save to file system
-        const filename = `tabla_smash_${new Date().toISOString().split('T')[0]}.xlsx`;
-        const fileUri = FileSystem.documentDirectory + filename;
-        
-        await FileSystem.writeAsStringAsync(fileUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        // Share the file
-        await Sharing.shareAsync(fileUri);
-      };
+      // For now, just show an alert that Excel export requires backend setup
+      Alert.alert(
+        '📥 EXPORTAR',
+        'La exportación a Excel está disponible desde el backend en /api/tabla-global/exportar. Por favor configura el backend para usar esta funcionalidad.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       Alert.alert('❌ ERROR', 'Error al exportar Excel');
     } finally {
@@ -90,26 +74,32 @@ export default function TablaScreen() {
         <Text style={styles.title}>🏆 TABLA GLOBAL 🏆</Text>
         <Text style={styles.subtitle}>RANKING DE PUNTOS</Text>
 
-        {usuariosTabla.map((usuario, index) => (
-          <SmashCard key={usuario._id} style={[
-            styles.userCard,
-            index === 0 && styles.firstPlace,
-          ]}>
-            <View style={styles.userHeader}>
-              <Text style={styles.medal}>{getMedalEmoji(index)}</Text>
-              <Text style={[
-                styles.userName,
-                index === 0 && styles.firstPlaceText,
-              ]}>
-                {usuario.nombre.toUpperCase()}
-              </Text>
-              <Text style={[
-                styles.totalPoints,
-                index === 0 && styles.firstPlaceText,
-              ]}>
-                {usuario.total?.toFixed(1) || '0'}
-              </Text>
-            </View>
+        {usuariosTabla.map((usuario, index) => {
+          const isFirstPlace = index === 0;
+          const cardStyle = isFirstPlace 
+            ? { ...styles.userCard, ...styles.firstPlace }
+            : styles.userCard;
+          const nameStyle = isFirstPlace
+            ? { ...styles.userName, ...styles.firstPlaceText }
+            : styles.userName;
+          const totalStyle = isFirstPlace
+            ? { ...styles.totalPoints, ...styles.firstPlaceText }
+            : styles.totalPoints;
+          
+          return (
+            <SmashCard 
+              key={usuario._id} 
+              style={cardStyle}
+            >
+              <View style={styles.userHeader}>
+                <Text style={styles.medal}>{getMedalEmoji(index)}</Text>
+                <Text style={nameStyle}>
+                  {usuario.nombre.toUpperCase()}
+                </Text>
+                <Text style={totalStyle}>
+                  {usuario.total?.toFixed(1) || '0'}
+                </Text>
+              </View>
 
             <View style={styles.pointsGrid}>
               <View style={styles.pointItem}>
@@ -148,7 +138,8 @@ export default function TablaScreen() {
               </View>
             </View>
           </SmashCard>
-        ))}
+        );
+        })}
 
         <View style={styles.buttonContainer}>
           <SmashButton
