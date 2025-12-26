@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useApp } from '@/context/AppContext';
 import { FlappyYoshi } from '@/components/games';
+import PasswordModal from '@/components/PasswordModal';
 import { Transaccion } from '@/types';
 import * as api from '@/services/api';
 import Avatar8Bit from '@/components/Avatar8Bit';
@@ -151,6 +152,9 @@ export default function BancoScreen() {
   const [showFlappyYoshi, setShowFlappyYoshi] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Estado para modal de contraseña
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -167,7 +171,7 @@ export default function BancoScreen() {
     }
   };
 
-  const handlePago = async () => {
+  const handlePago = () => {
     if (!usuarioSeleccionado || !monto) {
       Alert.alert('Yoshi!', 'Selecciona un jugador y monto');
       return;
@@ -178,6 +182,15 @@ export default function BancoScreen() {
       Alert.alert('Yoshi?', 'Monto invalido');
       return;
     }
+
+    // Mostrar modal de contraseña
+    setShowPasswordModal(true);
+  };
+
+  const handlePagoConfirmado = async () => {
+    if (!usuarioSeleccionado || !monto) return;
+
+    const montoNum = parseFloat(monto);
 
     setProcesando(true);
     try {
@@ -493,6 +506,17 @@ export default function BancoScreen() {
           <View style={styles.pipeBody} />
         </View>
       </View>
+
+      {/* Modal: Contraseña para guardar pago */}
+      <PasswordModal
+        visible={showPasswordModal}
+        onCancel={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          setShowPasswordModal(false);
+          handlePagoConfirmado();
+        }}
+        title="🔐 AUTORIZACIÓN REQUERIDA"
+      />
     </View>
   );
 }
