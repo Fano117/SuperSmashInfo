@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import Svg, { Path, G, Text as SvgText } from 'react-native-svg';
 import { SmashColors, SmashSpacing, SmashSizes } from '@/constants/smashTheme';
 import SmashButton from './SmashButton';
 
@@ -7,6 +8,10 @@ interface RuletaProps {
   opciones: string[];
   onResultado: (resultado: string, index: number) => void;
 }
+
+const RULETA_SIZE = 280;
+const CENTER_SIZE = 60;
+const RADIUS = RULETA_SIZE / 2;
 
 export default function Ruleta({ opciones, onResultado }: RuletaProps) {
   const [girando, setGirando] = useState(false);
@@ -16,14 +21,14 @@ export default function Ruleta({ opciones, onResultado }: RuletaProps) {
     if (girando || opciones.length === 0) return;
 
     setGirando(true);
-    
+
     // Random result
     const resultIndex = Math.floor(Math.random() * opciones.length);
     const segmentAngle = 360 / opciones.length;
-    const targetRotation = 360 * 5 + (360 - (resultIndex * segmentAngle + segmentAngle / 2)); // 5 full spins + position
-    
+    const targetRotation = 360 * 5 + (360 - (resultIndex * segmentAngle + segmentAngle / 2));
+
     rotacion.setValue(0);
-    
+
     Animated.timing(rotacion, {
       toValue: targetRotation,
       duration: 4000,
@@ -35,41 +40,42 @@ export default function Ruleta({ opciones, onResultado }: RuletaProps) {
     });
   };
 
-  const renderSegmentos = () => {
-    if (opciones.length === 0) return null;
+  const colors = [
+    SmashColors.accent,
+    SmashColors.tertiary,
+    SmashColors.fire,
+    SmashColors.dojos,
+    SmashColors.chescos,
+    SmashColors.mimidos,
+    SmashColors.pendejos,
+    SmashColors.castitontos,
+  ];
 
-    const segmentAngle = 360 / opciones.length;
-    const colors = [
-      SmashColors.accent,
-      SmashColors.tertiary,
-      SmashColors.fire,
-      SmashColors.dojos,
-      SmashColors.chescos,
-      SmashColors.mimidos,
-      SmashColors.pendejos,
-      SmashColors.castitontos,
-    ];
+  const createPieSlice = (index: number, total: number) => {
+    const anglePerSlice = (2 * Math.PI) / total;
+    const startAngle = index * anglePerSlice - Math.PI / 2;
+    const endAngle = (index + 1) * anglePerSlice - Math.PI / 2;
 
-    return opciones.map((opcion, index) => {
-      const rotation = index * segmentAngle;
-      const color = colors[index % colors.length];
+    const x1 = RADIUS + RADIUS * Math.cos(startAngle);
+    const y1 = RADIUS + RADIUS * Math.sin(startAngle);
+    const x2 = RADIUS + RADIUS * Math.cos(endAngle);
+    const y2 = RADIUS + RADIUS * Math.sin(endAngle);
 
-      return (
-        <View
-          key={index}
-          style={[
-            styles.segment,
-            {
-              transform: [{ rotate: `${rotation}deg` }],
-            },
-          ]}
-        >
-          <View style={[styles.segmentInner, { backgroundColor: color }]}>
-            <Text style={styles.segmentText}>{opcion}</Text>
-          </View>
-        </View>
-      );
-    });
+    const largeArcFlag = anglePerSlice > Math.PI ? 1 : 0;
+
+    return `M ${RADIUS} ${RADIUS} L ${x1} ${y1} A ${RADIUS} ${RADIUS} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+  };
+
+  const getTextPosition = (index: number, total: number) => {
+    const anglePerSlice = (2 * Math.PI) / total;
+    const midAngle = (index + 0.5) * anglePerSlice - Math.PI / 2;
+    const textRadius = RADIUS * 0.65;
+
+    return {
+      x: RADIUS + textRadius * Math.cos(midAngle),
+      y: RADIUS + textRadius * Math.sin(midAngle),
+      rotation: (midAngle * 180) / Math.PI + 90,
+    };
   };
 
   const spin = rotacion.interpolate({
@@ -94,8 +100,38 @@ export default function Ruleta({ opciones, onResultado }: RuletaProps) {
             },
           ]}
         >
-          {renderSegmentos()}
-          
+          <Svg width={RULETA_SIZE} height={RULETA_SIZE}>
+            <G>
+              {opciones.map((opcion, index) => {
+                const color = colors[index % colors.length];
+                const textPos = getTextPosition(index, opciones.length);
+
+                return (
+                  <G key={index}>
+                    <Path
+                      d={createPieSlice(index, opciones.length)}
+                      fill={color}
+                      stroke={SmashColors.border}
+                      strokeWidth={2}
+                    />
+                    <SvgText
+                      x={textPos.x}
+                      y={textPos.y}
+                      fill={SmashColors.text}
+                      fontSize={11}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      rotation={textPos.rotation}
+                      origin={`${textPos.x}, ${textPos.y}`}
+                    >
+                      {opcion.length > 10 ? opcion.substring(0, 10) + '...' : opcion}
+                    </SvgText>
+                  </G>
+                );
+              })}
+            </G>
+          </Svg>
+
           {/* Centro */}
           <View style={styles.center}>
             <Text style={styles.centerText}>🎲</Text>
@@ -113,9 +149,6 @@ export default function Ruleta({ opciones, onResultado }: RuletaProps) {
     </View>
   );
 }
-
-const RULETA_SIZE = 280;
-const CENTER_SIZE = 60;
 
 const styles = StyleSheet.create({
   container: {
@@ -152,35 +185,11 @@ const styles = StyleSheet.create({
     borderColor: SmashColors.border,
     overflow: 'hidden',
     backgroundColor: SmashColors.primary,
-    // 8-bit shadow
     shadowColor: SmashColors.shadow,
     shadowOffset: { width: 4, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 0,
     elevation: 8,
-  },
-  segment: {
-    position: 'absolute',
-    width: RULETA_SIZE / 2,
-    height: RULETA_SIZE / 2,
-    top: 0,
-    left: RULETA_SIZE / 4,
-    transformOrigin: `${RULETA_SIZE / 4}px ${RULETA_SIZE / 2}px`,
-  },
-  segmentInner: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    paddingTop: SmashSpacing.md,
-  },
-  segmentText: {
-    color: SmashColors.text,
-    fontSize: 12,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textShadowColor: SmashColors.shadow,
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 0,
   },
   center: {
     position: 'absolute',

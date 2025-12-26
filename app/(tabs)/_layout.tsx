@@ -42,7 +42,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          headerTitle: 'DOJO SMASH 2025',
+          headerTitle: 'Super Smash Info',
           tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
         }}
       />

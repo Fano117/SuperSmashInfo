@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TetrisGame } from '@/components/games';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '@/context/AppContext';
 import FormularioPuntos from '@/components/FormularioPuntos';
@@ -71,6 +72,23 @@ export default function ConteoScreen() {
 
   // Estados para historial de semanas
   const [historialSemanas, setHistorialSemanas] = useState<RegistroSemanal[]>([]);
+
+  // Easter egg: Tetris - Long press 5 segundos
+  const [showTetris, setShowTetris] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePipeGesture = {
+    onTouchStart: () => {
+      longPressTimerRef.current = setTimeout(() => {
+        setShowTetris(true);
+      }, 5000);
+    },
+    onTouchEnd: () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    },
+  };
 
   // Cargar datos guardados al iniciar
   useEffect(() => {
@@ -406,12 +424,13 @@ export default function ConteoScreen() {
         )}
       </ScrollView>
 
-      {/* Tuberia boton guardar - Esquina inferior derecha */}
+      {/* Tuberia boton guardar - Easter egg: Long press + swipe up = Tetris */}
       <TouchableOpacity
         style={[styles.pipeButton, guardando && styles.pipeButtonDisabled]}
         onPress={handleGuardar}
         disabled={guardando}
         activeOpacity={0.8}
+        {...handlePipeGesture}
       >
         <View style={styles.pipeTop}>
           <Text style={styles.pipeButtonText}>
@@ -422,6 +441,9 @@ export default function ConteoScreen() {
           <Text style={styles.pipeButtonEmoji}>{guardando ? '⏳' : '💾'}</Text>
         </View>
       </TouchableOpacity>
+
+      {/* Tetris Game Easter Egg */}
+      <TetrisGame visible={showTetris} onClose={() => setShowTetris(false)} />
 
       {/* Modal: Nuevo Usuario */}
       <Modal

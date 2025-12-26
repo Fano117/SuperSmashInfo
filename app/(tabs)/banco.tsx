@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
   Easing,
 } from 'react-native';
 import { useApp } from '@/context/AppContext';
+import { FlappyYoshi } from '@/components/games';
 import { Transaccion } from '@/types';
 import * as api from '@/services/api';
 import Avatar8Bit from '@/components/Avatar8Bit';
@@ -146,6 +147,10 @@ export default function BancoScreen() {
   const [procesando, setProcesando] = useState(false);
   const [cargandoDatos, setCargandoDatos] = useState(true);
 
+  // Easter egg: FlappyYoshi - Long press en los huevos del header
+  const [showFlappyYoshi, setShowFlappyYoshi] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -236,17 +241,48 @@ export default function BancoScreen() {
         </View>
       </View>
 
-      {/* Header estilo cartel de madera */}
+      {/* Header estilo cartel de madera - Easter egg: Long press en huevos abre FlappyYoshi */}
       <View style={styles.header}>
         <View style={styles.woodSign}>
           <View style={styles.woodSignTop}>
-            <YoshiEgg size={28} animated style={styles.headerEgg} />
+            <TouchableOpacity
+              onPressIn={() => {
+                longPressTimer.current = setTimeout(() => {
+                  setShowFlappyYoshi(true);
+                }, 2000);
+              }}
+              onPressOut={() => {
+                if (longPressTimer.current) {
+                  clearTimeout(longPressTimer.current);
+                  longPressTimer.current = null;
+                }
+              }}
+            >
+              <YoshiEgg size={28} animated style={styles.headerEgg} />
+            </TouchableOpacity>
             <Text style={styles.title}>BANCO SMASH</Text>
-            <YoshiEgg size={28} animated style={styles.headerEgg} />
+            <TouchableOpacity
+              onPressIn={() => {
+                longPressTimer.current = setTimeout(() => {
+                  setShowFlappyYoshi(true);
+                }, 2000);
+              }}
+              onPressOut={() => {
+                if (longPressTimer.current) {
+                  clearTimeout(longPressTimer.current);
+                  longPressTimer.current = null;
+                }
+              }}
+            >
+              <YoshiEgg size={28} animated style={styles.headerEgg} />
+            </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>Yoshi's House</Text>
         </View>
       </View>
+
+      {/* FlappyYoshi Game Easter Egg */}
+      <FlappyYoshi visible={showFlappyYoshi} onClose={() => setShowFlappyYoshi(false)} />
 
       {/* Total en huevo gigante */}
       <View style={styles.totalContainer}>

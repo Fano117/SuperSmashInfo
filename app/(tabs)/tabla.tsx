@@ -1,17 +1,59 @@
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { SmashColors, SmashSpacing, CategoryLabels } from '@/constants/smashTheme';
 import SmashCard from '@/components/SmashCard';
 import SmashButton from '@/components/SmashButton';
 import { getTablaGlobal } from '@/services/api';
 import { Usuario } from '@/types';
+import { PacManGame } from '@/components/games';
 
 export default function TablaScreen() {
   const { usuarios, loading: contextLoading } = useApp();
   const [usuariosTabla, setUsuariosTabla] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
+
+  // Easter egg: PacMan - Tap trophies alternately (gold, silver, gold, silver, gold)
+  const [showPacMan, setShowPacMan] = useState(false);
+  const [trophySequence, setTrophySequence] = useState<number[]>([]);
+  const sequenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTrophyTap = (position: number) => {
+    // Only track taps on first 3 positions (gold, silver, bronze)
+    if (position > 2) return;
+
+    // Reset sequence after 3 seconds of inactivity
+    if (sequenceTimerRef.current) {
+      clearTimeout(sequenceTimerRef.current);
+    }
+    sequenceTimerRef.current = setTimeout(() => {
+      setTrophySequence([]);
+    }, 3000);
+
+    const newSequence = [...trophySequence, position];
+    setTrophySequence(newSequence);
+
+    // Check for pattern: alternating taps (0,1,0,1,0) or (1,0,1,0,1) - 5 alternating taps
+    if (newSequence.length >= 5) {
+      let isAlternating = true;
+      for (let i = 1; i < newSequence.length; i++) {
+        if (newSequence[i] === newSequence[i - 1]) {
+          isAlternating = false;
+          break;
+        }
+      }
+      if (isAlternating) {
+        setShowPacMan(true);
+        setTrophySequence([]);
+      }
+    }
+
+    // Reset if sequence gets too long without success
+    if (newSequence.length > 10) {
+      setTrophySequence([]);
+    }
+  };
 
   useEffect(() => {
     cargarTabla();
@@ -92,7 +134,9 @@ export default function TablaScreen() {
               style={cardStyle}
             >
               <View style={styles.userHeader}>
-                <Text style={styles.medal}>{getMedalEmoji(index)}</Text>
+                <TouchableOpacity onPress={() => handleTrophyTap(index)}>
+                  <Text style={styles.medal}>{getMedalEmoji(index)}</Text>
+                </TouchableOpacity>
                 <Text style={nameStyle}>
                   {usuario.nombre.toUpperCase()}
                 </Text>
@@ -157,6 +201,9 @@ export default function TablaScreen() {
           />
         </View>
       </View>
+
+      {/* PacMan Game Easter Egg */}
+      <PacManGame visible={showPacMan} onClose={() => setShowPacMan(false)} />
     </ScrollView>
   );
 }

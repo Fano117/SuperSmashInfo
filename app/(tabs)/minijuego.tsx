@@ -1,10 +1,11 @@
-import { StyleSheet, View, Text, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
-import { useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, Alert, ActivityIndicator, TextInput, TouchableOpacity } from 'react-native';
+import { useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { SmashColors, SmashSpacing, CategoryLabels, CategoryIcons } from '@/constants/smashTheme';
 import SmashButton from '@/components/SmashButton';
 import SmashCard from '@/components/SmashCard';
 import Ruleta from '@/components/Ruleta';
+import { SnakeGame } from '@/components/games';
 import { crearApuesta, resolverApuesta } from '@/services/api';
 import { TipoPunto } from '@/types';
 
@@ -19,7 +20,10 @@ export default function MinijuegoScreen() {
   const [cantidad, setCantidad] = useState('10');
   const [resultado, setResultado] = useState<string | null>(null);
   const [apuestaId, setApuestaId] = useState<string | null>(null);
+  const [ganadorSeleccionado, setGanadorSeleccionado] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
+  const [showSnake, setShowSnake] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const opciones = modo === 'numeros'
     ? Array.from({ length: numCampos }, (_, i) => (i + 1).toString())
@@ -48,7 +52,7 @@ export default function MinijuegoScreen() {
       setProcesando(true);
       const apuesta = await crearApuesta(participantesSeleccionados, tipoPunto, parseFloat(cantidad));
       setApuestaId(apuesta._id);
-      Alert.alert('✅ APUESTA CREADA', 'Gira la ruleta para determinar el ganador!');
+      Alert.alert('✅ APUESTA CREADA', 'Selecciona el ganador!');
     } catch (error) {
       Alert.alert('❌ ERROR', error instanceof Error ? error.message : 'Error al crear apuesta');
     } finally {
@@ -56,40 +60,23 @@ export default function MinijuegoScreen() {
     }
   };
 
-  const handleResultadoRuleta = async (resultado: string, index: number) => {
+  const handleResultadoRuleta = (resultado: string, index: number) => {
     setResultado(resultado);
+    Alert.alert('🎯 RESULTADO', `Ha salido: ${resultado}`);
+  };
 
-    if (!apuestaId) {
-      // Just show result, no bet
-      Alert.alert('🎯 RESULTADO', `Ha salido: ${resultado}`);
-      return;
-    }
-
-    // Determine winner
-    let ganadorId: string | null = null;
-
-    if (modo === 'integrantes') {
-      const usuario = usuarios.find(u => u.nombre === resultado);
-      if (usuario && participantesSeleccionados.includes(usuario._id)) {
-        ganadorId = usuario._id;
-      }
-    } else {
-      // In number mode, distribute winners evenly
-      const ganadorIndex = index % participantesSeleccionados.length;
-      ganadorId = participantesSeleccionados[ganadorIndex];
-    }
-
-    if (!ganadorId) {
-      Alert.alert('⚠️ ERROR', 'No se pudo determinar ganador');
+  const handleResolverApuesta = async () => {
+    if (!apuestaId || !ganadorSeleccionado) {
+      Alert.alert('⚠️ ATENCION', 'Selecciona un ganador');
       return;
     }
 
     try {
       setProcesando(true);
-      await resolverApuesta(apuestaId, ganadorId);
+      await resolverApuesta(apuestaId, ganadorSeleccionado);
       await refreshUsuarios();
 
-      const ganador = usuarios.find(u => u._id === ganadorId);
+      const ganador = usuarios.find(u => u._id === ganadorSeleccionado);
       Alert.alert(
         '🏆 WINNER!',
         `${ganador?.nombre} ha ganado ${cantidad} ${CategoryLabels[tipoPunto]}!`,
@@ -104,7 +91,7 @@ export default function MinijuegoScreen() {
 
   const resetApuesta = () => {
     setApuestaId(null);
-    setResultado(null);
+    setGanadorSeleccionado(null);
     setParticipantesSeleccionados([]);
   };
 
@@ -120,9 +107,6 @@ export default function MinijuegoScreen() {
   return (
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
       <View style={styles.container}>
-        <Text style={styles.title}>🎲 MINIJUEGO 🎲</Text>
-        <Text style={styles.subtitle}>ROBO DE PUNTOS</Text>
-
         {/* Modo de Ruleta */}
         <SmashCard style={styles.card}>
           <Text style={styles.sectionTitle}>MODO DE RULETA</Text>
@@ -171,61 +155,119 @@ export default function MinijuegoScreen() {
           <Ruleta opciones={opciones} onResultado={handleResultadoRuleta} />
         </SmashCard>
 
+        {/* Titulo Minijuego - Long press 3s en dados abre Snake */}
+        <View style={styles.titleContainer}>
+          <TouchableOpacity
+            onPressIn={() => {
+              longPressTimer.current = setTimeout(() => {
+                setShowSnake(true);
+              }, 3000);
+            }}
+            onPressOut={() => {
+              if (longPressTimer.current) {
+                clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+              }
+            }}
+          >
+            <Text style={styles.title}>🎲 MINIJUEGO 🎲</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.subtitle}>ROBO DE PUNTOS</Text>
+
+        {/* Snake Game Easter Egg */}
+        <SnakeGame visible={showSnake} onClose={() => setShowSnake(false)} />
+
         {/* Configurar Apuesta */}
         <SmashCard style={styles.card}>
-          <Text style={styles.sectionTitle}>⚔️ CONFIGURAR APUESTA</Text>
-
-          <Text style={styles.label}>PARTICIPANTES:</Text>
-          <View style={styles.participantesContainer}>
-            {usuarios.map(usuario => (
-              <SmashButton
-                key={usuario._id}
-                title={usuario.nombre}
-                onPress={() => toggleParticipante(usuario._id)}
-                variant={participantesSeleccionados.includes(usuario._id) ? 'accent' : 'secondary'}
-                style={styles.participanteButton}
-              />
-            ))}
-          </View>
-
-          <Text style={styles.label}>TIPO DE PUNTO:</Text>
-          <View style={styles.tipoButtons}>
-            {(['dojos', 'pendejos', 'chescos', 'mimidos', 'castitontos'] as TipoPunto[]).map(tipo => (
-              <SmashButton
-                key={tipo}
-                title={`${CategoryIcons[tipo]} ${CategoryLabels[tipo]}`}
-                onPress={() => setTipoPunto(tipo)}
-                variant={tipoPunto === tipo ? 'fire' : 'secondary'}
-                style={styles.tipoButton}
-              />
-            ))}
-          </View>
-
-          <Text style={styles.label}>CANTIDAD:</Text>
-          <TextInput
-            style={styles.input}
-            value={cantidad}
-            onChangeText={setCantidad}
-            placeholder="10"
-            placeholderTextColor={SmashColors.textDark}
-            keyboardType="numeric"
-          />
+          <Text style={styles.sectionTitle}>⚔️ APUESTAS</Text>
 
           {!apuestaId ? (
-            <SmashButton
-              title={procesando ? "CREANDO..." : "✅ CREAR APUESTA"}
-              onPress={handleCrearApuesta}
-              variant="accent"
-              fullWidth
-              disabled={procesando}
-            />
+            <>
+              <Text style={styles.label}>PARTICIPANTES (puntos {CategoryLabels[tipoPunto]}):</Text>
+              <View style={styles.participantesContainer}>
+                {usuarios.map(usuario => (
+                  <SmashButton
+                    key={usuario._id}
+                    title={`${usuario.nombre} (${usuario[tipoPunto] || 0})`}
+                    onPress={() => toggleParticipante(usuario._id)}
+                    variant={participantesSeleccionados.includes(usuario._id) ? 'accent' : 'secondary'}
+                    style={styles.participanteButton}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.label}>TIPO DE PUNTO:</Text>
+              <View style={styles.tipoButtons}>
+                {(['dojos', 'pendejos', 'chescos', 'mimidos', 'castitontos'] as TipoPunto[]).map(tipo => (
+                  <SmashButton
+                    key={tipo}
+                    title={`${CategoryIcons[tipo]} ${CategoryLabels[tipo]}`}
+                    onPress={() => setTipoPunto(tipo)}
+                    variant={tipoPunto === tipo ? 'fire' : 'secondary'}
+                    style={styles.tipoButton}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.label}>CANTIDAD:</Text>
+              <TextInput
+                style={styles.input}
+                value={cantidad}
+                onChangeText={setCantidad}
+                placeholder="10"
+                placeholderTextColor={SmashColors.textDark}
+                keyboardType="numeric"
+              />
+
+              <SmashButton
+                title={procesando ? "CREANDO..." : "✅ CREAR APUESTA"}
+                onPress={handleCrearApuesta}
+                variant="accent"
+                fullWidth
+                disabled={procesando}
+              />
+            </>
           ) : (
-            <SmashButton
-              title="🔄 NUEVA APUESTA"
-              onPress={resetApuesta}
-              variant="secondary"
-              fullWidth
-            />
+            <>
+              <View style={styles.apuestaInfo}>
+                <Text style={styles.apuestaInfoText}>
+                  {participantesSeleccionados.length} jugadores × {cantidad} {CategoryLabels[tipoPunto]}
+                </Text>
+              </View>
+
+              <Text style={styles.label}>SELECCIONA EL GANADOR:</Text>
+              <View style={styles.participantesContainer}>
+                {participantesSeleccionados.map(id => {
+                  const usuario = usuarios.find(u => u._id === id);
+                  return (
+                    <SmashButton
+                      key={id}
+                      title={`🏆 ${usuario?.nombre}`}
+                      onPress={() => setGanadorSeleccionado(id)}
+                      variant={ganadorSeleccionado === id ? 'fire' : 'secondary'}
+                      style={styles.participanteButton}
+                    />
+                  );
+                })}
+              </View>
+
+              <SmashButton
+                title={procesando ? "RESOLVIENDO..." : "✅ CONFIRMAR GANADOR"}
+                onPress={handleResolverApuesta}
+                variant="accent"
+                fullWidth
+                disabled={procesando || !ganadorSeleccionado}
+                style={styles.confirmarButton}
+              />
+
+              <SmashButton
+                title="❌ CANCELAR APUESTA"
+                onPress={resetApuesta}
+                variant="secondary"
+                fullWidth
+              />
+            </>
           )}
         </SmashCard>
       </View>
@@ -256,6 +298,9 @@ const styles = StyleSheet.create({
     color: SmashColors.textDark,
     marginTop: SmashSpacing.md,
     fontWeight: 'bold',
+  },
+  titleContainer: {
+    alignItems: 'center',
   },
   title: {
     fontSize: 22,
@@ -359,5 +404,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SmashSpacing.md,
     marginBottom: SmashSpacing.md,
     textAlign: 'center',
+  },
+  apuestaInfo: {
+    backgroundColor: SmashColors.tertiary,
+    padding: SmashSpacing.md,
+    marginBottom: SmashSpacing.md,
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: SmashColors.border,
+  },
+  apuestaInfoText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: SmashColors.text,
+  },
+  confirmarButton: {
+    marginBottom: SmashSpacing.sm,
   },
 });

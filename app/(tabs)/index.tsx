@@ -128,12 +128,9 @@ export default function HomeScreen() {
         <View style={styles.logoContainer}>
           <Animated.View style={[styles.logoGlow, { opacity: glowOpacity }]} />
           <Animated.Text style={[styles.title, { transform: [{ scale: titleScale }] }]}>
-            DOJO SMASH
+          SMASH INFO
           </Animated.Text>
-          <Text style={styles.year}>2025</Text>
-          <View style={styles.smashBall}>
-            <Text style={styles.smashBallText}>⚡</Text>
-          </View>
+          <Text style={styles.year}>2026</Text>
         </View>
 
         {/* Subtitulo */}
