@@ -130,7 +130,7 @@ export default function HomeScreen() {
           <Animated.Text style={[styles.title, { transform: [{ scale: titleScale }] }]}>
           SMASH INFO
           </Animated.Text>
-          <Text style={styles.year}>2026</Text>
+          <Text style={styles.year}>{new Date().getFullYear()}</Text>
         </View>
 
         {/* Subtitulo */}
@@ -402,6 +402,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 0,
     elevation: 5,
+    transform: [{ scale: 1 }],
   },
   menuButtonMario: {
     backgroundColor: '#e52521',
