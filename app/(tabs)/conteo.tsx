@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   Image,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TetrisGame } from '@/components/games';
@@ -20,7 +22,7 @@ import Avatar8Bit, { AVATARES_DISPONIBLES } from '@/components/Avatar8Bit';
 import PasswordModal from '@/components/PasswordModal';
 import { SmashColors } from '@/constants/theme';
 import * as api from '@/services/api';
-import { Usuario, AvatarId, RegistroSemanal } from '@/types';
+import { Usuario, AvatarId, RegistroSemanal, HistorialSemana } from '@/types';
 
 // Colores tema Mario/Yoshi
 const MarioColors = {
@@ -74,6 +76,25 @@ export default function ConteoScreen() {
   // Estados para historial de semanas
   const [historialSemanas, setHistorialSemanas] = useState<RegistroSemanal[]>([]);
 
+  // Estados para modal de historial completo
+  const [modalHistorial, setModalHistorial] = useState(false);
+  const [historialCompleto, setHistorialCompleto] = useState<HistorialSemana[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [semanaExpandida, setSemanaExpandida] = useState<string | null>(null);
+
+  // Estados para edición de registro
+  const [modalEditarRegistro, setModalEditarRegistro] = useState(false);
+  const [registroEditando, setRegistroEditando] = useState<RegistroSemanal | null>(null);
+  const [valoresEdicion, setValoresEdicion] = useState({
+    dojos: 0,
+    pendejos: 0,
+    mimidos: 0,
+    castitontos: 0,
+    chescos: 0,
+  });
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [showPasswordModalEdicion, setShowPasswordModalEdicion] = useState(false);
+
   // Easter egg: Tetris - Long press 5 segundos
   const [showTetris, setShowTetris] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,12 +103,12 @@ export default function ConteoScreen() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handlePipeGesture = {
-    onTouchStart: () => {
+    onPressIn: () => {
       longPressTimerRef.current = setTimeout(() => {
         setShowTetris(true);
       }, 5000);
     },
-    onTouchEnd: () => {
+    onPressOut: () => {
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
       }
@@ -302,10 +323,19 @@ export default function ConteoScreen() {
 
     setGuardandoPerfil(true);
     try {
+      // Si hay foto nueva seleccionada (URI local), subirla al servidor
+      if (fotoPersonalizada && fotoPersonalizada.startsWith('file://')) {
+        await api.subirFotoPerfil(usuarioEditando._id, fotoPersonalizada);
+      } else if (!fotoPersonalizada && usuarioEditando.fotoUrl) {
+        // Si se quitó la foto, eliminarla del servidor
+        await api.eliminarFotoPerfil(usuarioEditando._id);
+      }
+
+      // Actualizar avatar
       await api.actualizarUsuario(usuarioEditando._id, {
         avatar: avatarSeleccionado,
-        fotoUrl: fotoPersonalizada,
       });
+
       await refreshUsuarios();
       Alert.alert('1-UP!', `Perfil de ${usuarioEditando.nombre} actualizado`);
       setModalEditarUsuario(false);
@@ -340,6 +370,93 @@ export default function ConteoScreen() {
     );
   };
 
+  // Funciones para historial completo
+  const handleAbrirHistorial = async () => {
+    setModalHistorial(true);
+    setCargandoHistorial(true);
+    try {
+      const historial = await api.getHistorialCompleto();
+      setHistorialCompleto(historial);
+      if (historial.length > 0) {
+        setSemanaExpandida(historial[0].semana);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo cargar el historial');
+    } finally {
+      setCargandoHistorial(false);
+    }
+  };
+
+  const handleEditarRegistro = (registro: RegistroSemanal) => {
+    // Primero cerrar el modal de historial
+    setModalHistorial(false);
+
+    // Luego configurar los datos del registro a editar
+    setRegistroEditando(registro);
+    setValoresEdicion({
+      dojos: registro.dojos,
+      pendejos: registro.pendejos,
+      mimidos: registro.mimidos,
+      castitontos: registro.castitontos,
+      chescos: registro.chescos,
+    });
+
+    // Asegurar que el modal de password no esté abierto
+    setShowPasswordModalEdicion(false);
+
+    // Abrir el modal de edición después de que se cierre el historial
+    setTimeout(() => {
+      setModalEditarRegistro(true);
+    }, 200);
+  };
+
+  const handleConfirmarEdicion = () => {
+    setShowPasswordModalEdicion(true);
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!registroEditando) return;
+
+    setGuardandoEdicion(true);
+    try {
+      await api.editarRegistroSemanal(registroEditando._id, valoresEdicion);
+      await refreshUsuarios();
+
+      // Recargar historial
+      const historial = await api.getHistorialCompleto();
+      setHistorialCompleto(historial);
+      const historialReciente = await api.getUltimasDosSemanas();
+      setHistorialSemanas(historialReciente);
+
+      // Primero cerrar el modal de edición
+      setModalEditarRegistro(false);
+      setRegistroEditando(null);
+      setGuardandoEdicion(false);
+
+      // Mostrar alerta y luego reabrir historial
+      Alert.alert('COMPLETE!', 'Registro actualizado exitosamente', [
+        {
+          text: 'OK',
+          onPress: () => {
+            setTimeout(() => setModalHistorial(true), 150);
+          }
+        }
+      ]);
+    } catch (error) {
+      setGuardandoEdicion(false);
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo actualizar');
+    }
+  };
+
+  const handleCerrarEdicion = () => {
+    // Asegurar que el modal de contraseña también se cierre
+    setShowPasswordModalEdicion(false);
+    setModalEditarRegistro(false);
+    setRegistroEditando(null);
+    // Volver a abrir el historial
+    setTimeout(() => setModalHistorial(true), 200);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -364,6 +481,12 @@ export default function ConteoScreen() {
               onPress={() => setModalNuevoUsuario(true)}
             >
               <Text style={styles.actionButtonEmoji}>➕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.historialButton]}
+              onPress={handleAbrirHistorial}
+            >
+              <Text style={styles.actionButtonEmoji}>📜</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
@@ -649,7 +772,7 @@ export default function ConteoScreen() {
                   <View style={styles.previewContainer}>
                     {fotoPersonalizada ? (
                       <Image
-                        source={{ uri: fotoPersonalizada }}
+                        source={{ uri: fotoPersonalizada.startsWith('file://') ? fotoPersonalizada : api.getFotoUrl(fotoPersonalizada) || '' }}
                         style={styles.previewImage}
                       />
                     ) : (
@@ -706,6 +829,422 @@ export default function ConteoScreen() {
         </View>
       </Modal>
 
+      {/* Modal: Historial Completo */}
+      <Modal
+        visible={modalHistorial}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalHistorial(false)}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.modalHistorialOverlay}>
+          <View style={[styles.modalContent, styles.modalHistorialContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📜 HISTORIAL DE GUARDADOS</Text>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setModalHistorial(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {cargandoHistorial ? (
+              <View style={styles.loadingHistorial}>
+                <ActivityIndicator size="large" color={MarioColors.yellow} />
+                <Text style={styles.loadingHistorialText}>Cargando historial...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.historialScroll}>
+                {historialCompleto.length === 0 ? (
+                  <View style={styles.emptyHistorial}>
+                    <Text style={styles.emptyHistorialText}>No hay registros guardados</Text>
+                  </View>
+                ) : (
+                  historialCompleto.map((semanaData) => (
+                    <View key={semanaData.semana} style={styles.semanaSection}>
+                      <TouchableOpacity
+                        style={styles.semanaSectionHeader}
+                        onPress={() => setSemanaExpandida(
+                          semanaExpandida === semanaData.semana ? null : semanaData.semana
+                        )}
+                      >
+                        <Text style={styles.semanaSectionTitle}>
+                          {semanaExpandida === semanaData.semana ? '▼' : '▶'} {semanaData.semana}
+                        </Text>
+                        <Text style={styles.semanaSectionCount}>
+                          {semanaData.registros.length} registro(s)
+                        </Text>
+                      </TouchableOpacity>
+
+                      {semanaExpandida === semanaData.semana && (
+                        <View style={styles.semanaSectionBody}>
+                          {semanaData.registros.map((registro) => {
+                            const usuarioData = typeof registro.usuario === 'string'
+                              ? usuarios.find(u => u._id === registro.usuario)
+                              : registro.usuario;
+                            return (
+                              <View key={registro._id} style={styles.registroItem}>
+                                <View style={styles.registroHeader}>
+                                  <Text style={styles.registroNombre}>
+                                    {usuarioData?.nombre || '???'}
+                                  </Text>
+                                  <TouchableOpacity
+                                    style={styles.editarRegistroBtn}
+                                    onPress={() => handleEditarRegistro(registro)}
+                                  >
+                                    <Text style={styles.editarRegistroBtnText}>✏️</Text>
+                                  </TouchableOpacity>
+                                </View>
+                                <View style={styles.registroValores}>
+                                  <Text style={styles.registroValor}>🏆 {registro.dojos}</Text>
+                                  <Text style={styles.registroValor}><Text style={styles.emojiRotado}>🧢</Text> {registro.pendejos}</Text>
+                                  <Text style={styles.registroValor}>🛏️ {registro.mimidos}</Text>
+                                  <Text style={styles.registroValor}>🤡 {registro.castitontos}</Text>
+                                  <Text style={styles.registroValor}>🥤 {registro.chescos}</Text>
+                                </View>
+                                {registro.historialModificaciones && registro.historialModificaciones.length > 0 && (
+                                  <Text style={styles.modificacionesCount}>
+                                    📝 {registro.historialModificaciones.length} modificación(es)
+                                  </Text>
+                                )}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Editar Registro */}
+      <Modal
+        visible={modalEditarRegistro}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCerrarEdicion}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.modalEditarOverlay}>
+          <View style={[styles.modalContent, styles.modalEditarContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>✏️ EDITAR REGISTRO</Text>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={handleCerrarEdicion}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {registroEditando && (
+                <>
+                  <Text style={styles.editingUserName}>
+                    {typeof registroEditando.usuario === 'string'
+                      ? usuarios.find(u => u._id === registroEditando.usuario)?.nombre
+                      : registroEditando.usuario.nombre}
+                  </Text>
+                  <Text style={styles.editingSemana}>{registroEditando.semana}</Text>
+
+                  {/* Modal de contraseña para edición - DENTRO del modal de edición */}
+                  <PasswordModal
+                    visible={showPasswordModalEdicion}
+                    onCancel={() => {
+                      setShowPasswordModalEdicion(false);
+                    }}
+                    onSuccess={() => {
+                      setShowPasswordModalEdicion(false);
+                      setTimeout(() => {
+                        handleGuardarEdicion();
+                      }, 100);
+                    }}
+                    title="🔐 CONFIRMAR EDICIÓN"
+                  />
+
+                  <View style={styles.edicionCampos}>
+                    {/* DOJOS */}
+                    <View style={styles.edicionCampo}>
+                      <Text style={styles.edicionLabel}>🏆 DOJOS</Text>
+                      <View style={styles.edicionInputRow}>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            dojos: Math.max(0, prev.dojos - 0.5)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>-.5</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            dojos: Math.max(0, prev.dojos - 1)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.edicionInput}
+                          value={valoresEdicion.dojos.toString()}
+                          onChangeText={(text) => setValoresEdicion(prev => ({
+                            ...prev,
+                            dojos: parseFloat(text) || 0
+                          }))}
+                          keyboardType="decimal-pad"
+                        />
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            dojos: prev.dojos + 1
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>+</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            dojos: prev.dojos + 0.5
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>+.5</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* PENDEJOS */}
+                    <View style={styles.edicionCampo}>
+                      <Text style={styles.edicionLabel}>🧢 PENDEJOS</Text>
+                      <View style={styles.edicionInputRow}>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            pendejos: Math.max(0, prev.pendejos - 0.5)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>-.5</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            pendejos: Math.max(0, prev.pendejos - 1)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.edicionInput}
+                          value={valoresEdicion.pendejos.toString()}
+                          onChangeText={(text) => setValoresEdicion(prev => ({
+                            ...prev,
+                            pendejos: parseFloat(text) || 0
+                          }))}
+                          keyboardType="decimal-pad"
+                        />
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            pendejos: prev.pendejos + 1
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>+</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            pendejos: prev.pendejos + 0.5
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>+.5</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* MIMIDOS */}
+                    <View style={styles.edicionCampo}>
+                      <Text style={styles.edicionLabel}>🛏️ MIMIDOS</Text>
+                      <View style={styles.edicionInputRow}>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            mimidos: Math.max(0, prev.mimidos - 0.5)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>-.5</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            mimidos: Math.max(0, prev.mimidos - 1)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.edicionInput}
+                          value={valoresEdicion.mimidos.toString()}
+                          onChangeText={(text) => setValoresEdicion(prev => ({
+                            ...prev,
+                            mimidos: parseFloat(text) || 0
+                          }))}
+                          keyboardType="decimal-pad"
+                        />
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            mimidos: prev.mimidos + 1
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>+</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            mimidos: prev.mimidos + 0.5
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>+.5</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* CASTITONTOS */}
+                    <View style={styles.edicionCampo}>
+                      <Text style={styles.edicionLabel}>🤡 CASTITONTOS</Text>
+                      <View style={styles.edicionInputRow}>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            castitontos: Math.max(0, prev.castitontos - 0.5)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>-.5</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            castitontos: Math.max(0, prev.castitontos - 1)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.edicionInput}
+                          value={valoresEdicion.castitontos.toString()}
+                          onChangeText={(text) => setValoresEdicion(prev => ({
+                            ...prev,
+                            castitontos: parseFloat(text) || 0
+                          }))}
+                          keyboardType="decimal-pad"
+                        />
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            castitontos: prev.castitontos + 1
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>+</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            castitontos: prev.castitontos + 0.5
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>+.5</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* CHESCOS */}
+                    <View style={styles.edicionCampo}>
+                      <Text style={styles.edicionLabel}>🥤 CHESCOS</Text>
+                      <View style={styles.edicionInputRow}>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            chescos: Math.max(0, prev.chescos - 0.5)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>-.5</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            chescos: Math.max(0, prev.chescos - 1)
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.edicionInput}
+                          value={valoresEdicion.chescos.toString()}
+                          onChangeText={(text) => setValoresEdicion(prev => ({
+                            ...prev,
+                            chescos: parseFloat(text) || 0
+                          }))}
+                          keyboardType="decimal-pad"
+                        />
+                        <TouchableOpacity
+                          style={styles.edicionBtn}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            chescos: prev.chescos + 1
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnText}>+</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.edicionBtn, styles.edicionBtnSmall]}
+                          onPress={() => setValoresEdicion(prev => ({
+                            ...prev,
+                            chescos: prev.chescos + 0.5
+                          }))}
+                        >
+                          <Text style={styles.edicionBtnTextSmall}>+.5</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.createButton, guardandoEdicion && styles.createButtonDisabled]}
+                    onPress={handleConfirmarEdicion}
+                    disabled={guardandoEdicion}
+                  >
+                    <Text style={styles.createButtonText}>
+                      {guardandoEdicion ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal: Contraseña para guardar */}
       <PasswordModal
         visible={showPasswordModal}
@@ -716,6 +1255,7 @@ export default function ConteoScreen() {
         }}
         title="🔐 AUTORIZACIÓN REQUERIDA"
       />
+
     </View>
   );
 }
@@ -1150,5 +1690,195 @@ const styles = StyleSheet.create({
   historialCellValue: {
     color: MarioColors.yellow,
     fontWeight: 'bold',
+  },
+  // Estilos del botón de historial
+  historialButton: {
+    backgroundColor: MarioColors.green,
+  },
+  // Estilos del modal de historial completo
+  modalHistorialContent: {
+    flex: 1,
+    maxHeight: '100%',
+    width: '100%',
+    margin: 0,
+  },
+  modalHistorialOverlay: {
+    flex: 1,
+    backgroundColor: MarioColors.blue,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 50,
+  },
+  loadingHistorial: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingHistorialText: {
+    color: MarioColors.white,
+    fontSize: 14,
+    marginTop: 12,
+  },
+  historialScroll: {
+    flex: 1,
+    padding: 12,
+  },
+  emptyHistorial: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyHistorialText: {
+    color: MarioColors.white,
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  semanaSection: {
+    marginBottom: 12,
+  },
+  semanaSectionHeader: {
+    backgroundColor: MarioColors.red,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: MarioColors.brown,
+  },
+  semanaSectionTitle: {
+    color: MarioColors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  semanaSectionCount: {
+    color: MarioColors.yellow,
+    fontSize: 12,
+  },
+  semanaSectionBody: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 3,
+    borderTopWidth: 0,
+    borderColor: MarioColors.brown,
+    padding: 8,
+  },
+  registroItem: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: MarioColors.yellow,
+  },
+  registroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  registroNombre: {
+    color: MarioColors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  editarRegistroBtn: {
+    width: 36,
+    height: 36,
+    backgroundColor: MarioColors.yellow,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: MarioColors.brown,
+  },
+  editarRegistroBtnText: {
+    fontSize: 16,
+  },
+  registroValores: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  registroValor: {
+    color: MarioColors.white,
+    fontSize: 12,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  emojiRotado: {
+    transform: [{ rotate: '180deg' }],
+  },
+  modificacionesCount: {
+    color: MarioColors.yellow,
+    fontSize: 10,
+    marginTop: 8,
+    opacity: 0.8,
+  },
+  // Estilos del modal de edición
+  editingSemana: {
+    color: MarioColors.white,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    opacity: 0.8,
+  },
+  edicionCampos: {
+    gap: 12,
+  },
+  edicionCampo: {
+    marginBottom: 8,
+  },
+  edicionLabel: {
+    color: MarioColors.yellow,
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  edicionInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  edicionBtn: {
+    width: 40,
+    height: 40,
+    backgroundColor: MarioColors.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: MarioColors.brown,
+  },
+  edicionBtnText: {
+    color: MarioColors.white,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  edicionInput: {
+    flex: 1,
+    backgroundColor: MarioColors.white,
+    borderWidth: 3,
+    borderColor: MarioColors.brown,
+    padding: 10,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: MarioColors.brown,
+    textAlign: 'center',
+  },
+  edicionBtnSmall: {
+    width: 32,
+    height: 40,
+    backgroundColor: MarioColors.green,
+  },
+  edicionBtnTextSmall: {
+    color: MarioColors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  // Estilos del modal de editar registro
+  modalEditarOverlay: {
+    flex: 1,
+    backgroundColor: MarioColors.blue,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 50,
+  },
+  modalEditarContent: {
+    flex: 1,
+    maxHeight: '100%',
+    width: '100%',
+    margin: 0,
   },
 });

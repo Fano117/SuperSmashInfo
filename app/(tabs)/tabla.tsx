@@ -20,8 +20,8 @@ export default function TablaScreen() {
   const sequenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTrophyTap = (position: number) => {
-    // Only track taps on first 3 positions (gold, silver, bronze)
-    if (position > 2) return;
+    // Only track taps on first 2 positions (gold=0, silver=1)
+    if (position > 1) return;
 
     // Reset sequence after 3 seconds of inactivity
     if (sequenceTimerRef.current) {
@@ -34,11 +34,13 @@ export default function TablaScreen() {
     const newSequence = [...trophySequence, position];
     setTrophySequence(newSequence);
 
-    // Check for pattern: alternating taps (0,1,0,1,0) or (1,0,1,0,1) - 5 alternating taps
+    // Check for pattern: alternating taps between gold(0) and silver(1) - 5 alternating taps
+    // Pattern: (0,1,0,1,0) or (1,0,1,0,1)
     if (newSequence.length >= 5) {
+      const lastFive = newSequence.slice(-5);
       let isAlternating = true;
-      for (let i = 1; i < newSequence.length; i++) {
-        if (newSequence[i] === newSequence[i - 1]) {
+      for (let i = 1; i < lastFive.length; i++) {
+        if (lastFive[i] === lastFive[i - 1]) {
           isAlternating = false;
           break;
         }

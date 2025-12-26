@@ -142,18 +142,26 @@ function SMWCoin({ size = 24 }: { size?: number }) {
 export default function BancoScreen() {
   const { usuarios, banco, refreshBanco, refreshUsuarios, loading } = useApp();
   const [historial, setHistorial] = useState<Transaccion[]>([]);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<string | null>(null);
+  const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>([]);
   const [monto, setMonto] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [procesando, setProcesando] = useState(false);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [esPagoDeuda, setEsPagoDeuda] = useState(false);
 
   // Easter egg: FlappyYoshi - Long press en los huevos del header
   const [showFlappyYoshi, setShowFlappyYoshi] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Estado para modal de contraseña
+  // Estado para modal de contraseña (pago)
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  // Estado para gastos/retiros
+  const [montoGasto, setMontoGasto] = useState('');
+  const [descripcionGasto, setDescripcionGasto] = useState('');
+  const [showPasswordModalGasto, setShowPasswordModalGasto] = useState(false);
+  const [procesandoGasto, setProcesandoGasto] = useState(false);
+  const [usuarioGastoId, setUsuarioGastoId] = useState<string | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -172,8 +180,8 @@ export default function BancoScreen() {
   };
 
   const handlePago = () => {
-    if (!usuarioSeleccionado || !monto) {
-      Alert.alert('Yoshi!', 'Selecciona un jugador y monto');
+    if (usuariosSeleccionados.length === 0 || !monto) {
+      Alert.alert('Yoshi!', 'Selecciona al menos un jugador y monto');
       return;
     }
 
@@ -188,22 +196,75 @@ export default function BancoScreen() {
   };
 
   const handlePagoConfirmado = async () => {
-    if (!usuarioSeleccionado || !monto) return;
+    if (usuariosSeleccionados.length === 0 || !monto) return;
 
     const montoNum = parseFloat(monto);
 
     setProcesando(true);
     try {
-      await api.registrarPago(usuarioSeleccionado, montoNum, descripcion || undefined);
+      // Registrar pago para cada usuario seleccionado
+      const promesasPago = usuariosSeleccionados.map(usuarioId =>
+        api.registrarPago(usuarioId, montoNum, descripcion || undefined, esPagoDeuda)
+      );
+      await Promise.all(promesasPago);
       await Promise.all([refreshBanco(), refreshUsuarios(), cargarDatos()]);
       setMonto('');
       setDescripcion('');
-      setUsuarioSeleccionado(null);
-      Alert.alert('Yoshi!', 'Pago registrado correctamente');
+      setUsuariosSeleccionados([]);
+      setEsPagoDeuda(false);
+      const cantidadUsuarios = usuariosSeleccionados.length;
+      const tipoPago = esPagoDeuda ? 'Pago de deuda' : 'Pago de ahorro';
+      Alert.alert('Yoshi!', `${tipoPago} registrado para ${cantidadUsuarios} jugador${cantidadUsuarios > 1 ? 'es' : ''}`);
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Error al registrar pago');
     } finally {
       setProcesando(false);
+    }
+  };
+
+  const handleGasto = () => {
+    if (!usuarioGastoId) {
+      Alert.alert('Yoshi!', 'Selecciona al jugador que realizará el gasto');
+      return;
+    }
+
+    if (!montoGasto) {
+      Alert.alert('Yoshi!', 'Ingresa el monto del gasto');
+      return;
+    }
+
+    const montoNum = parseFloat(montoGasto);
+    if (isNaN(montoNum) || montoNum <= 0) {
+      Alert.alert('Yoshi?', 'Monto inválido');
+      return;
+    }
+
+    if (!descripcionGasto.trim()) {
+      Alert.alert('Yoshi!', 'Describe el motivo del gasto');
+      return;
+    }
+
+    // Mostrar modal de contraseña para gasto
+    setShowPasswordModalGasto(true);
+  };
+
+  const handleGastoConfirmado = async () => {
+    if (!usuarioGastoId || !montoGasto || !descripcionGasto.trim()) return;
+
+    const montoNum = parseFloat(montoGasto);
+
+    setProcesandoGasto(true);
+    try {
+      await api.registrarGasto(usuarioGastoId, montoNum, descripcionGasto.trim());
+      await Promise.all([refreshBanco(), refreshUsuarios(), cargarDatos()]);
+      setMontoGasto('');
+      setDescripcionGasto('');
+      setUsuarioGastoId(null);
+      Alert.alert('Yoshi!', 'Gasto registrado correctamente');
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Error al registrar gasto');
+    } finally {
+      setProcesandoGasto(false);
     }
   };
 
@@ -321,36 +382,52 @@ export default function BancoScreen() {
             <Text style={styles.sectionTitle}>REGISTRAR PAGO</Text>
           </View>
 
-          {/* Selector de usuario */}
+          {/* Selector de usuarios (selección múltiple) */}
           <View style={styles.userSelector}>
-            {usuarios.map((usuario) => (
-              <TouchableOpacity
-                key={usuario._id}
-                style={[
-                  styles.userCard,
-                  usuarioSeleccionado === usuario._id && styles.userCardSelected,
-                ]}
-                onPress={() => setUsuarioSeleccionado(usuario._id)}
-              >
-                <View style={styles.userEggContainer}>
-                  <YoshiEgg size={32} spots={false} />
-                  <View style={styles.userAvatarOverlay}>
-                    <Avatar8Bit
-                      avatarId={usuario.avatar || 'yoshi'}
-                      size="small"
-                      fotoUrl={usuario.fotoUrl}
-                    />
+            {usuarios.map((usuario) => {
+              const isSelected = usuariosSeleccionados.includes(usuario._id);
+              return (
+                <TouchableOpacity
+                  key={usuario._id}
+                  style={[
+                    styles.userCard,
+                    isSelected && styles.userCardSelected,
+                  ]}
+                  onPress={() => {
+                    setUsuariosSeleccionados(prev =>
+                      isSelected
+                        ? prev.filter(id => id !== usuario._id)
+                        : [...prev, usuario._id]
+                    );
+                  }}
+                >
+                  <View style={styles.userEggContainer}>
+                    <YoshiEgg size={32} spots={false} />
+                    <View style={styles.userAvatarOverlay}>
+                      <Avatar8Bit
+                        avatarId={usuario.avatar || 'yoshi'}
+                        size="small"
+                        fotoUrl={usuario.fotoUrl}
+                      />
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.userName}>{usuario.nombre}</Text>
-                {usuarioSeleccionado === usuario._id && (
-                  <View style={styles.selectedIndicator}>
-                    <Text style={styles.selectedText}>OK!</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.userName}>{usuario.nombre}</Text>
+                  {isSelected && (
+                    <View style={styles.selectedIndicator}>
+                      <Text style={styles.selectedText}>OK!</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
+          {usuariosSeleccionados.length > 1 && (
+            <View style={styles.multiSelectInfo}>
+              <Text style={styles.multiSelectText}>
+                {usuariosSeleccionados.length} jugadores seleccionados
+              </Text>
+            </View>
+          )}
 
           {/* Inputs */}
           <View style={styles.inputSection}>
@@ -379,6 +456,20 @@ export default function BancoScreen() {
                 placeholderTextColor={YoshiHouseColors.grassDark}
               />
             </View>
+
+            {/* Checkbox pago de deuda */}
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() => setEsPagoDeuda(!esPagoDeuda)}
+            >
+              <View style={[styles.checkbox, esPagoDeuda && styles.checkboxChecked]}>
+                {esPagoDeuda && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.checkboxLabel}>Pago de deuda</Text>
+              {esPagoDeuda && (
+                <Text style={styles.checkboxHint}>(reduce deuda del jugador)</Text>
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Boton de pago */}
@@ -392,6 +483,87 @@ export default function BancoScreen() {
               {procesando ? 'PROCESANDO...' : 'GUARDAR PAGO'}
             </Text>
             <YoshiEgg size={24} spots={false} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Seccion de gastos/retiros */}
+        <View style={styles.section}>
+          <View style={[styles.sectionHeader, styles.gastoHeader]}>
+            <Text style={styles.gastoIcon}>💸</Text>
+            <Text style={styles.sectionTitle}>REGISTRAR GASTO</Text>
+          </View>
+
+          {/* Selector de usuario para gasto */}
+          <View style={styles.userSelector}>
+            {usuarios.map((usuario) => {
+              const isSelected = usuarioGastoId === usuario._id;
+              return (
+                <TouchableOpacity
+                  key={usuario._id}
+                  style={[
+                    styles.userCard,
+                    isSelected && styles.userCardSelectedGasto,
+                  ]}
+                  onPress={() => setUsuarioGastoId(isSelected ? null : usuario._id)}
+                >
+                  <View style={styles.userEggContainer}>
+                    <YoshiEgg size={32} spots={false} />
+                    <View style={styles.userAvatarOverlay}>
+                      <Avatar8Bit
+                        avatarId={usuario.avatar || 'yoshi'}
+                        size="small"
+                        fotoUrl={usuario.fotoUrl}
+                      />
+                    </View>
+                  </View>
+                  <Text style={styles.userName}>{usuario.nombre}</Text>
+                  {isSelected && (
+                    <View style={styles.selectedIndicatorGasto}>
+                      <Text style={styles.selectedText}>💸</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={styles.inputSection}>
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>Monto:</Text>
+              <View style={styles.inputContainer}>
+                <SMWCoin size={18} />
+                <TextInput
+                  style={styles.input}
+                  value={montoGasto}
+                  onChangeText={setMontoGasto}
+                  keyboardType="numeric"
+                  placeholder="0.00"
+                  placeholderTextColor={YoshiHouseColors.grassDark}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputRow}>
+              <Text style={styles.inputLabel}>Razón:</Text>
+              <TextInput
+                style={[styles.input, styles.inputWide]}
+                value={descripcionGasto}
+                onChangeText={setDescripcionGasto}
+                placeholder="Describe el gasto (requerido)"
+                placeholderTextColor={YoshiHouseColors.grassDark}
+              />
+            </View>
+          </View>
+
+          {/* Boton de gasto */}
+          <TouchableOpacity
+            style={[styles.gastoButton, procesandoGasto && styles.payButtonDisabled]}
+            onPress={handleGasto}
+            disabled={procesandoGasto}
+          >
+            <Text style={styles.gastoButtonText}>
+              {procesandoGasto ? 'PROCESANDO...' : '💸 REGISTRAR GASTO'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -448,7 +620,10 @@ export default function BancoScreen() {
               </View>
             ) : (
               historial.slice(0, 10).map((trans, index) => {
-                const usuarioObj = typeof trans.usuario === 'object' ? trans.usuario : null;
+                // Buscar usuario: si viene como objeto usarlo, si es string buscar en la lista
+                const usuarioObj = typeof trans.usuario === 'object'
+                  ? trans.usuario
+                  : usuarios.find(u => u._id === trans.usuario) || null;
                 const usuarioNombre = usuarioObj ? usuarioObj.nombre : 'Usuario';
                 const fecha = trans.createdAt
                   ? new Date(trans.createdAt).toLocaleDateString()
@@ -516,6 +691,17 @@ export default function BancoScreen() {
           handlePagoConfirmado();
         }}
         title="🔐 AUTORIZACIÓN REQUERIDA"
+      />
+
+      {/* Modal: Contraseña para registrar gasto */}
+      <PasswordModal
+        visible={showPasswordModalGasto}
+        onCancel={() => setShowPasswordModalGasto(false)}
+        onSuccess={() => {
+          setShowPasswordModalGasto(false);
+          handleGastoConfirmado();
+        }}
+        title="🔐 AUTORIZAR GASTO"
       />
     </View>
   );
@@ -1051,5 +1237,102 @@ const styles = StyleSheet.create({
   sectionEgg: {
     width: 20,
     height: 20,
+  },
+  // Indicador de selección múltiple
+  multiSelectInfo: {
+    backgroundColor: YoshiHouseColors.coinYellow,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: YoshiHouseColors.coinOrange,
+    alignItems: 'center',
+  },
+  multiSelectText: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  // Estilos para sección de gastos
+  gastoHeader: {
+    backgroundColor: YoshiHouseColors.red,
+    borderBottomColor: '#A01010',
+  },
+  gastoIcon: {
+    fontSize: 18,
+  },
+  gastoButton: {
+    flexDirection: 'row',
+    backgroundColor: YoshiHouseColors.red,
+    padding: 12,
+    margin: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#A01010',
+  },
+  gastoButtonText: {
+    color: YoshiHouseColors.textWhite,
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    textShadowColor: YoshiHouseColors.textShadow,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 0,
+  },
+  // Estilos para selector de usuario en gastos
+  userCardSelectedGasto: {
+    backgroundColor: '#FFE0E0',
+    borderColor: YoshiHouseColors.red,
+    borderWidth: 3,
+  },
+  selectedIndicatorGasto: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: YoshiHouseColors.red,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  // Estilos para checkbox de pago de deuda
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 3,
+    borderColor: YoshiHouseColors.grassDark,
+    borderRadius: 4,
+    backgroundColor: YoshiHouseColors.textWhite,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: YoshiHouseColors.coinYellow,
+    borderColor: YoshiHouseColors.coinOrange,
+  },
+  checkmark: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    color: YoshiHouseColors.grassDark,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  checkboxHint: {
+    color: YoshiHouseColors.grassLight,
+    fontSize: 11,
+    fontStyle: 'italic',
   },
 });

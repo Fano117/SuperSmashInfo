@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { getHighscoreGlobal, guardarHighscore } from '@/services/api';
 
 interface TetrisGameProps {
   visible: boolean;
   onClose: () => void;
+  usuarioId?: string;
 }
 
 const BOARD_WIDTH = 10;
@@ -31,7 +33,7 @@ const randomTetromino = (): TetrominoType => {
   return types[Math.floor(Math.random() * types.length)];
 };
 
-export default function TetrisGame({ visible, onClose }: TetrisGameProps) {
+export default function TetrisGame({ visible, onClose, usuarioId }: TetrisGameProps) {
   const [board, setBoard] = useState<Board>(createBoard());
   const [currentPiece, setCurrentPiece] = useState<TetrominoType>(randomTetromino());
   const [position, setPosition] = useState({ x: 3, y: 0 });
@@ -44,6 +46,32 @@ export default function TetrisGame({ visible, onClose }: TetrisGameProps) {
   const [highScore, setHighScore] = useState(0);
 
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cargar highscore global del backend al abrir
+  useEffect(() => {
+    if (visible) {
+      getHighscoreGlobal('tetris')
+        .then(data => {
+          if (data && data.puntuacion > 0) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
+
+  // Guardar highscore cuando termina el juego
+  useEffect(() => {
+    if (gameOver && score > 0 && usuarioId) {
+      guardarHighscore('tetris', usuarioId, score)
+        .then(data => {
+          if (data && data.puntuacion > highScore) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [gameOver, score, usuarioId, highScore]);
 
   const getRotatedShape = useCallback((type: TetrominoType, rot: number) => {
     let shape = [...TETROMINOS[type].shape.map(row => [...row])];
@@ -147,14 +175,63 @@ export default function TetrisGame({ visible, onClose }: TetrisGameProps) {
     }
   };
 
-  const hardDrop = () => {
+  const hardDrop = useCallback(() => {
+    if (gameOver || isPaused) return;
+
     let newY = position.y;
     while (isValidMove(position.x, newY + 1, rotation)) {
       newY++;
     }
-    setPosition(p => ({ ...p, y: newY }));
-    placePiece();
-  };
+
+    // Colocar la pieza directamente en la posición final
+    const shape = getRotatedShape(currentPiece, rotation);
+    const newBoard = board.map(row => [...row]);
+
+    for (let y = 0; y < shape.length; y++) {
+      for (let x = 0; x < shape[y].length; x++) {
+        if (shape[y][x] && newY + y >= 0) {
+          newBoard[newY + y][position.x + x] = 1;
+        }
+      }
+    }
+
+    // Check for completed lines
+    let linesCleared = 0;
+    for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+      if (newBoard[y].every(cell => cell === 1)) {
+        newBoard.splice(y, 1);
+        newBoard.unshift(Array(BOARD_WIDTH).fill(0));
+        linesCleared++;
+        y++;
+      }
+    }
+
+    if (linesCleared > 0) {
+      const points = [0, 100, 300, 500, 800][linesCleared] * level;
+      setScore(s => s + points);
+      setLines(l => {
+        const newLines = l + linesCleared;
+        if (Math.floor(newLines / 10) > Math.floor(l / 10)) {
+          setLevel(lv => lv + 1);
+        }
+        return newLines;
+      });
+    }
+
+    setBoard(newBoard);
+
+    // Spawn new piece
+    const newPiece = randomTetromino();
+    setCurrentPiece(newPiece);
+    setPosition({ x: 3, y: 0 });
+    setRotation(0);
+
+    // Check game over
+    if (!isValidMove(3, 0, 0)) {
+      setGameOver(true);
+      if (score > highScore) setHighScore(score);
+    }
+  }, [gameOver, isPaused, position, rotation, isValidMove, getRotatedShape, currentPiece, board, level, score, highScore]);
 
   useEffect(() => {
     if (visible && !isPaused && !gameOver) {

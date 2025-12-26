@@ -3,11 +3,13 @@ const Banco = require('./Banco');
 const RegistroSemanal = require('./RegistroSemanal');
 const Transaccion = require('./Transaccion');
 const Apuesta = require('./Apuesta');
+const Highscore = require('./Highscore');
 
 module.exports = {
   Usuario,
   Banco,
   RegistroSemanal,
   Transaccion,
-  Apuesta
+  Apuesta,
+  Highscore
 };

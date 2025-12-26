@@ -1,19 +1,83 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, TouchableWithoutFeedback } from 'react-native';
+import { getHighscoreGlobal, guardarHighscore } from '@/services/api';
 
 interface FlappyYoshiProps {
   visible: boolean;
   onClose: () => void;
+  usuarioId?: string;
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width - 80;
 const SCREEN_HEIGHT = 400;
-const YOSHI_SIZE = 30;
+const YOSHI_SIZE = 21; // 50% más pequeño (era 30)
+const YOSHI_HITBOX = 12; // Hitbox más pequeña que el sprite visual (era 18)
 const PIPE_WIDTH = 50;
-const PIPE_GAP = 120;
-const GRAVITY = 0.6;
-const JUMP_FORCE = -10;
-const PIPE_SPEED = 3;
+const PIPE_HITBOX_OFFSET = 10; // Reducir hitbox de tuberías ~1cm de cada lado
+const PIPE_GAP = 130; // Gap un poco más grande
+const GRAVITY = 0.5; // Gravedad más suave
+const JUMP_FORCE = -9;
+const BASE_PIPE_SPEED = 1.5; // Velocidad inicial muy lenta
+const SPEED_INCREMENT = 0.3; // Incremento cada 30 segundos
+const MAX_PIPE_SPEED = 4; // Velocidad máxima
+
+// Colores del huevo de Yoshi (verde -> turquesa -> azul -> rojo -> amarillo)
+const EGG_COLORS = ['#4CAF50', '#00BCD4', '#2196F3', '#F44336', '#FFEB3B'];
+
+const PIXEL_SIZE = 2; // 30% más grande que 1.5
+
+// Componente del huevo de Yoshi estilo pixel art exacto como en la imagen
+const EGG_WIDTH = 11;
+const EGG_HEIGHT = 13;
+
+const YoshiEgg = ({ spotColor }: { spotColor: string }) => {
+  // Mapa de pixeles del huevo (0=transparente, 1=negro/borde, 2=blanco, 3=mancha de color)
+  // Basado exactamente en la imagen del huevo de Yoshi
+  const eggPixelMap = [
+    [0,0,0,1,1,1,1,1,0,0,0],      // Fila 1: borde superior
+    [0,0,1,2,2,3,2,2,1,0,0],      // Fila 2
+    [0,1,2,2,3,3,2,2,2,1,0],      // Fila 3
+    [0,1,2,2,3,3,2,3,2,1,0],      // Fila 4
+    [1,2,2,2,2,2,3,3,2,2,1],      // Fila 5
+    [1,2,3,2,2,2,3,3,2,2,1],      // Fila 6
+    [1,2,3,3,2,2,2,2,2,2,1],      // Fila 7
+    [1,2,3,3,2,2,2,2,3,2,1],      // Fila 8
+    [1,2,2,3,2,2,2,3,3,2,1],      // Fila 9
+    [0,1,2,2,2,2,3,3,2,1,0],      // Fila 10
+    [0,1,2,2,2,2,2,2,2,1,0],      // Fila 11
+    [0,0,1,2,2,2,2,2,1,0,0],      // Fila 12
+    [0,0,0,1,1,1,1,1,0,0,0],      // Fila 13: borde inferior
+  ];
+
+  const getPixelColor = (value: number) => {
+    switch (value) {
+      case 0: return 'transparent';
+      case 1: return '#2D3436'; // Borde oscuro
+      case 2: return '#FFFFFF';
+      case 3: return spotColor;
+      default: return 'transparent';
+    }
+  };
+
+  return (
+    <View style={{ width: EGG_WIDTH * PIXEL_SIZE, height: EGG_HEIGHT * PIXEL_SIZE }}>
+      {eggPixelMap.map((row, rowIndex) => (
+        <View key={rowIndex} style={{ flexDirection: 'row' }}>
+          {row.map((pixel, colIndex) => (
+            <View
+              key={colIndex}
+              style={{
+                width: PIXEL_SIZE,
+                height: PIXEL_SIZE,
+                backgroundColor: getPixelColor(pixel),
+              }}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+};
 
 interface Pipe {
   x: number;
@@ -21,7 +85,8 @@ interface Pipe {
   passed: boolean;
 }
 
-export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
+
+export default function FlappyYoshi({ visible, onClose, usuarioId }: FlappyYoshiProps) {
   const [yoshiY, setYoshiY] = useState(SCREEN_HEIGHT / 2);
   const [velocity, setVelocity] = useState(0);
   const [pipes, setPipes] = useState<Pipe[]>([]);
@@ -29,14 +94,74 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
   const [score, setScore] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
   const [highScore, setHighScore] = useState(0);
+  const [pipeSpeed, setPipeSpeed] = useState(BASE_PIPE_SPEED);
+  const [eggColorIndex, setEggColorIndex] = useState(0);
+
+  // Cargar highscore global del backend al abrir
+  useEffect(() => {
+    if (visible) {
+      getHighscoreGlobal('flappy-yoshi')
+        .then(data => {
+          if (data && data.puntuacion > 0) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {
+          // Si falla, mantener highscore local
+        });
+    }
+  }, [visible]);
+
+  // Guardar highscore cuando termina el juego
+  useEffect(() => {
+    if (gameOver && score > 0 && usuarioId) {
+      guardarHighscore('flappy-yoshi', usuarioId, score)
+        .then(data => {
+          if (data && data.puntuacion > highScore) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {
+          // Si falla, mantener highscore local
+        });
+    }
+  }, [gameOver, score, usuarioId, highScore]);
 
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pipeSpawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const speedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const colorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pipeSpeedRef = useRef(BASE_PIPE_SPEED);
   const velocityRef = useRef(velocity);
+  const yoshiYRef = useRef(yoshiY);
+  const scoreRef = useRef(score);
+  const highScoreRef = useRef(highScore);
+  const gameOverRef = useRef(gameOver);
+  const isPausedRef = useRef(isPaused);
 
   useEffect(() => {
     velocityRef.current = velocity;
   }, [velocity]);
+
+  useEffect(() => {
+    yoshiYRef.current = yoshiY;
+  }, [yoshiY]);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    highScoreRef.current = highScore;
+  }, [highScore]);
+
+  useEffect(() => {
+    gameOverRef.current = gameOver;
+  }, [gameOver]);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   const resetGame = useCallback(() => {
     setYoshiY(SCREEN_HEIGHT / 2);
@@ -46,6 +171,9 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
     setGameOver(false);
     setScore(0);
     setIsPaused(true);
+    setPipeSpeed(BASE_PIPE_SPEED);
+    pipeSpeedRef.current = BASE_PIPE_SPEED;
+    setEggColorIndex(0);
   }, []);
 
   const jump = () => {
@@ -74,7 +202,7 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
   }, []);
 
   const gameLoop = useCallback(() => {
-    if (gameOver || isPaused) return;
+    if (gameOverRef.current || isPausedRef.current) return;
 
     // Update Yoshi position
     setVelocity(v => {
@@ -89,38 +217,42 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
       // Check floor/ceiling collision
       if (newY < 0 || newY > SCREEN_HEIGHT - YOSHI_SIZE) {
         setGameOver(true);
-        if (score > highScore) setHighScore(score);
+        if (scoreRef.current > highScoreRef.current) setHighScore(scoreRef.current);
         return y;
       }
 
+      yoshiYRef.current = newY;
       return newY;
     });
 
     // Update pipes
     setPipes(prev => {
       const yoshiX = 50;
-      const yoshiRight = yoshiX + YOSHI_SIZE;
-      const yoshiTop = yoshiY;
-      const yoshiBottom = yoshiY + YOSHI_SIZE;
+      // Usar hitbox más pequeña centrada en el sprite
+      const hitboxOffset = (YOSHI_SIZE - YOSHI_HITBOX) / 2;
+      const yoshiLeft = yoshiX + hitboxOffset;
+      const yoshiRight = yoshiX + YOSHI_SIZE - hitboxOffset;
+      const yoshiTop = yoshiYRef.current + hitboxOffset;
+      const yoshiBottom = yoshiYRef.current + YOSHI_SIZE - hitboxOffset;
 
       return prev.map(pipe => {
-        const newX = pipe.x - PIPE_SPEED;
+        const newX = pipe.x - pipeSpeedRef.current;
 
-        // Check collision
-        const pipeLeft = newX;
-        const pipeRight = newX + PIPE_WIDTH;
-        const topPipeBottom = pipe.topHeight;
-        const bottomPipeTop = pipe.topHeight + PIPE_GAP;
+        // Check collision (con hitbox reducida de las tuberías)
+        const pipeLeft = newX + PIPE_HITBOX_OFFSET;
+        const pipeRight = newX + PIPE_WIDTH - PIPE_HITBOX_OFFSET;
+        const topPipeBottom = pipe.topHeight - PIPE_HITBOX_OFFSET;
+        const bottomPipeTop = pipe.topHeight + PIPE_GAP + PIPE_HITBOX_OFFSET;
 
-        if (yoshiRight > pipeLeft && yoshiX < pipeRight) {
+        if (yoshiRight > pipeLeft && yoshiLeft < pipeRight) {
           if (yoshiTop < topPipeBottom || yoshiBottom > bottomPipeTop) {
             setGameOver(true);
-            if (score > highScore) setHighScore(score);
+            if (scoreRef.current > highScoreRef.current) setHighScore(scoreRef.current);
           }
         }
 
         // Check if passed
-        if (!pipe.passed && newX + PIPE_WIDTH < yoshiX) {
+        if (!pipe.passed && newX + PIPE_WIDTH < yoshiLeft) {
           setScore(s => s + 1);
           return { ...pipe, x: newX, passed: true };
         }
@@ -128,16 +260,34 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
         return { ...pipe, x: newX };
       }).filter(pipe => pipe.x > -PIPE_WIDTH);
     });
-  }, [gameOver, isPaused, yoshiY, score, highScore]);
+  }, []);
 
   useEffect(() => {
     if (visible && !isPaused && !gameOver) {
       gameLoopRef.current = setInterval(gameLoop, 1000 / 60);
       pipeSpawnRef.current = setInterval(spawnPipe, 2000);
+      // Spawn first pipe immediately
+      spawnPipe();
+
+      // Timer para incrementar velocidad cada 30 segundos
+      speedTimerRef.current = setInterval(() => {
+        setPipeSpeed(speed => {
+          const newSpeed = Math.min(speed + SPEED_INCREMENT, MAX_PIPE_SPEED);
+          pipeSpeedRef.current = newSpeed;
+          return newSpeed;
+        });
+      }, 30000);
+
+      // Timer para cambiar color del huevo cada 10 segundos
+      colorTimerRef.current = setInterval(() => {
+        setEggColorIndex(idx => (idx + 1) % EGG_COLORS.length);
+      }, 10000);
     }
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
       if (pipeSpawnRef.current) clearInterval(pipeSpawnRef.current);
+      if (speedTimerRef.current) clearInterval(speedTimerRef.current);
+      if (colorTimerRef.current) clearInterval(colorTimerRef.current);
     };
   }, [visible, isPaused, gameOver, gameLoop, spawnPipe]);
 
@@ -164,6 +314,7 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
                 {/* Score */}
                 <View style={styles.scoreRow}>
                   <Text style={styles.scoreText}>SCORE: {score}</Text>
+                  <Text style={styles.scoreText}>SPD: {pipeSpeed.toFixed(1)}</Text>
                   <Text style={styles.scoreText}>HI: {highScore}</Text>
                 </View>
 
@@ -204,9 +355,9 @@ export default function FlappyYoshi({ visible, onClose }: FlappyYoshiProps) {
                     </React.Fragment>
                   ))}
 
-                  {/* Yoshi */}
+                  {/* Yoshi Egg */}
                   <View style={[styles.yoshi, { top: yoshiY }]}>
-                    <Text style={styles.yoshiEmoji}>🦖</Text>
+                    <YoshiEgg spotColor={EGG_COLORS[eggColorIndex]} />
                   </View>
 
                   {/* Ground */}
@@ -310,11 +461,8 @@ const styles = StyleSheet.create({
   yoshi: {
     position: 'absolute',
     left: 50,
-    width: YOSHI_SIZE,
-    height: YOSHI_SIZE,
-  },
-  yoshiEmoji: {
-    fontSize: 28,
+    width: EGG_WIDTH * PIXEL_SIZE,
+    height: EGG_HEIGHT * PIXEL_SIZE,
   },
   pipe: {
     position: 'absolute',

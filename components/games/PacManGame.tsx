@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { getHighscoreGlobal, guardarHighscore } from '@/services/api';
 
 interface PacManGameProps {
   visible: boolean;
   onClose: () => void;
+  usuarioId?: string;
 }
 
 const CELL_SIZE = 16;
@@ -88,7 +90,7 @@ interface Ghost {
   scared: boolean;
 }
 
-export default function PacManGame({ visible, onClose }: PacManGameProps) {
+export default function PacManGame({ visible, onClose, usuarioId }: PacManGameProps) {
   const [level, setLevel] = useState(0);
   const [maze, setMaze] = useState<string[]>([]);
   const [pacman, setPacman] = useState<Position>({ x: 10, y: 15 });
@@ -102,10 +104,37 @@ export default function PacManGame({ visible, onClose }: PacManGameProps) {
   const [powerMode, setPowerMode] = useState(false);
   const [levelComplete, setLevelComplete] = useState(false);
   const [mouthOpen, setMouthOpen] = useState(true);
+  const [highScore, setHighScore] = useState(0);
 
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const powerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const directionRef = useRef(pacmanDir);
+
+  // Cargar highscore global del backend al abrir
+  useEffect(() => {
+    if (visible) {
+      getHighscoreGlobal('pacman')
+        .then(data => {
+          if (data && data.puntuacion > 0) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
+
+  // Guardar highscore cuando termina el juego
+  useEffect(() => {
+    if (gameOver && score > 0 && usuarioId) {
+      guardarHighscore('pacman', usuarioId, score)
+        .then(data => {
+          if (data && data.puntuacion > highScore) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [gameOver, score, usuarioId, highScore]);
 
   const initLevel = useCallback((lvl: number) => {
     const levelMaze = LEVELS[lvl];
@@ -345,6 +374,7 @@ export default function PacManGame({ visible, onClose }: PacManGameProps) {
               <View style={styles.hud}>
                 <Text style={styles.hudText}>LVL:{level + 1}</Text>
                 <Text style={styles.hudText}>SCORE:{score}</Text>
+                <Text style={styles.hudText}>HI:{highScore}</Text>
                 <Text style={styles.hudText}>{'❤️'.repeat(lives)}</Text>
               </View>
 

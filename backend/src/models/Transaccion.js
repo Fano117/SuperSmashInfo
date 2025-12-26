@@ -4,7 +4,7 @@ const transaccionSchema = new mongoose.Schema({
   usuario: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Usuario',
-    required: true
+    required: false
   },
   monto: {
     type: Number,
@@ -12,7 +12,7 @@ const transaccionSchema = new mongoose.Schema({
   },
   tipo: {
     type: String,
-    enum: ['pago', 'retiro'],
+    enum: ['pago', 'pago_deuda', 'retiro'],
     required: true
   },
   descripcion: {

@@ -108,4 +108,107 @@ router.post('/batch', async (req, res) => {
   }
 });
 
+// GET /api/conteo-semanal/historial - Obtener historial completo agrupado por semanas
+router.get('/historial', async (req, res) => {
+  try {
+    const registros = await RegistroSemanal.find()
+      .populate('usuario', 'nombre avatar fotoUrl')
+      .sort({ semana: -1, createdAt: -1 });
+
+    // Agrupar por semana
+    const agrupado = {};
+    registros.forEach(reg => {
+      if (!agrupado[reg.semana]) {
+        agrupado[reg.semana] = [];
+      }
+      agrupado[reg.semana].push(reg);
+    });
+
+    // Convertir a array ordenado
+    const resultado = Object.keys(agrupado)
+      .sort((a, b) => b.localeCompare(a))
+      .map(semana => ({
+        semana,
+        registros: agrupado[semana]
+      }));
+
+    res.json(resultado);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// PUT /api/conteo-semanal/:id - Editar un registro semanal
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dojos, pendejos, mimidos, castitontos, chescos } = req.body;
+
+    const registro = await RegistroSemanal.findById(id);
+    if (!registro) {
+      return res.status(404).json({ message: 'Registro no encontrado' });
+    }
+
+    // Guardar valores anteriores para el historial
+    const valoresAnteriores = {
+      dojos: registro.dojos,
+      pendejos: registro.pendejos,
+      mimidos: registro.mimidos,
+      castitontos: registro.castitontos,
+      chescos: registro.chescos
+    };
+
+    const valoresNuevos = {
+      dojos: dojos !== undefined ? dojos : registro.dojos,
+      pendejos: pendejos !== undefined ? pendejos : registro.pendejos,
+      mimidos: mimidos !== undefined ? mimidos : registro.mimidos,
+      castitontos: castitontos !== undefined ? castitontos : registro.castitontos,
+      chescos: chescos !== undefined ? chescos : registro.chescos
+    };
+
+    // Calcular diferencias para actualizar el usuario
+    const diferencias = {
+      dojos: valoresNuevos.dojos - valoresAnteriores.dojos,
+      pendejos: valoresNuevos.pendejos - valoresAnteriores.pendejos,
+      mimidos: valoresNuevos.mimidos - valoresAnteriores.mimidos,
+      castitontos: valoresNuevos.castitontos - valoresAnteriores.castitontos,
+      chescos: valoresNuevos.chescos - valoresAnteriores.chescos
+    };
+
+    // Agregar al historial de modificaciones
+    registro.historialModificaciones.push({
+      fecha: new Date(),
+      valoresAnteriores,
+      valoresNuevos
+    });
+
+    // Actualizar valores del registro
+    registro.dojos = valoresNuevos.dojos;
+    registro.pendejos = valoresNuevos.pendejos;
+    registro.mimidos = valoresNuevos.mimidos;
+    registro.castitontos = valoresNuevos.castitontos;
+    registro.chescos = valoresNuevos.chescos;
+
+    await registro.save();
+
+    // Actualizar totales del usuario con las diferencias
+    const usuario = await Usuario.findById(registro.usuario);
+    if (usuario) {
+      usuario.dojos += diferencias.dojos;
+      usuario.pendejos += diferencias.pendejos;
+      usuario.mimidos += diferencias.mimidos;
+      usuario.castitontos += diferencias.castitontos;
+      usuario.chescos += diferencias.chescos;
+      await usuario.save();
+    }
+
+    const registroPopulado = await RegistroSemanal.findById(registro._id)
+      .populate('usuario', 'nombre avatar fotoUrl');
+
+    res.json(registroPopulado);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 module.exports = router;

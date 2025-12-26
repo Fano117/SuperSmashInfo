@@ -6,7 +6,7 @@ import SmashButton from '@/components/SmashButton';
 import SmashCard from '@/components/SmashCard';
 import Ruleta from '@/components/Ruleta';
 import PasswordModal from '@/components/PasswordModal';
-import { SnakeGame } from '@/components/games';
+import { SnakeGame, FlappyYoshi, TetrisGame, PacManGame } from '@/components/games';
 import { crearApuesta, resolverApuesta } from '@/services/api';
 import { TipoPunto } from '@/types';
 
@@ -18,12 +18,16 @@ export default function MinijuegoScreen() {
   const [numCampos, setNumCampos] = useState(6);
   const [participantesSeleccionados, setParticipantesSeleccionados] = useState<string[]>([]);
   const [tipoPunto, setTipoPunto] = useState<TipoPunto>('dojos');
-  const [cantidad, setCantidad] = useState('10');
+  const [cantidad, setCantidad] = useState('0');
   const [resultado, setResultado] = useState<string | null>(null);
   const [apuestaId, setApuestaId] = useState<string | null>(null);
   const [ganadorSeleccionado, setGanadorSeleccionado] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
   const [showSnake, setShowSnake] = useState(false);
+  const [showFlappy, setShowFlappy] = useState(false);
+  const [showTetris, setShowTetris] = useState(false);
+  const [showPacman, setShowPacman] = useState(false);
+  const [jugadorActivo, setJugadorActivo] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Estado para modal de contraseña
@@ -184,8 +188,57 @@ export default function MinijuegoScreen() {
         </View>
         <Text style={styles.subtitle}>ROBO DE PUNTOS</Text>
 
-        {/* Snake Game Easter Egg */}
-        <SnakeGame visible={showSnake} onClose={() => setShowSnake(false)} />
+        {/* Seccion Minijuegos Arcade */}
+        <SmashCard style={styles.card}>
+          <Text style={styles.sectionTitle}>🕹️ ARCADE</Text>
+
+          <Text style={styles.label}>JUGADOR (para guardar puntuacion):</Text>
+          <View style={styles.participantesContainer}>
+            {usuarios.map(usuario => (
+              <SmashButton
+                key={usuario._id}
+                title={usuario.nombre}
+                onPress={() => setJugadorActivo(jugadorActivo === usuario._id ? null : usuario._id)}
+                variant={jugadorActivo === usuario._id ? 'fire' : 'secondary'}
+                style={styles.participanteButton}
+              />
+            ))}
+          </View>
+
+          <Text style={styles.label}>SELECCIONA UN JUEGO:</Text>
+          <View style={styles.gamesGrid}>
+            <SmashButton
+              title="🐍 SNAKE"
+              onPress={() => setShowSnake(true)}
+              variant="accent"
+              style={styles.gameButton}
+            />
+            <SmashButton
+              title="🥚 FLAPPY"
+              onPress={() => setShowFlappy(true)}
+              variant="accent"
+              style={styles.gameButton}
+            />
+            <SmashButton
+              title="🧱 TETRIS"
+              onPress={() => setShowTetris(true)}
+              variant="accent"
+              style={styles.gameButton}
+            />
+            <SmashButton
+              title="👻 PACMAN"
+              onPress={() => setShowPacman(true)}
+              variant="accent"
+              style={styles.gameButton}
+            />
+          </View>
+        </SmashCard>
+
+        {/* Games Modals */}
+        <SnakeGame visible={showSnake} onClose={() => setShowSnake(false)} usuarioId={jugadorActivo || undefined} />
+        <FlappyYoshi visible={showFlappy} onClose={() => setShowFlappy(false)} usuarioId={jugadorActivo || undefined} />
+        <TetrisGame visible={showTetris} onClose={() => setShowTetris(false)} usuarioId={jugadorActivo || undefined} />
+        <PacManGame visible={showPacman} onClose={() => setShowPacman(false)} usuarioId={jugadorActivo || undefined} />
 
         {/* Configurar Apuesta */}
         <SmashCard style={styles.card}>
@@ -230,7 +283,7 @@ export default function MinijuegoScreen() {
               />
 
               <SmashButton
-                title={procesando ? "CREANDO..." : "✅ CREAR APUESTA"}
+                title={procesando ? "CREANDO..." : " CREAR APUESTA"}
                 onPress={handleCrearApuesta}
                 variant="accent"
                 fullWidth
@@ -440,5 +493,15 @@ const styles = StyleSheet.create({
   },
   confirmarButton: {
     marginBottom: SmashSpacing.sm,
+  },
+  gamesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SmashSpacing.sm,
+    justifyContent: 'center',
+  },
+  gameButton: {
+    width: '45%',
+    paddingVertical: SmashSpacing.md,
   },
 });

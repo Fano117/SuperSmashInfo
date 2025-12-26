@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
-import { SmashColors } from '@/constants/smashTheme';
+import { getHighscoreGlobal, guardarHighscore } from '@/services/api';
 
 interface SnakeGameProps {
   visible: boolean;
   onClose: () => void;
+  usuarioId?: string;
 }
 
 const GRID_SIZE = 15;
@@ -13,7 +14,7 @@ const CELL_SIZE = Math.floor((Dimensions.get('window').width - 80) / GRID_SIZE);
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 type Position = { x: number; y: number };
 
-export default function SnakeGame({ visible, onClose }: SnakeGameProps) {
+export default function SnakeGame({ visible, onClose, usuarioId }: SnakeGameProps) {
   const [snake, setSnake] = useState<Position[]>([{ x: 7, y: 7 }]);
   const [food, setFood] = useState<Position>({ x: 5, y: 5 });
   const [direction, setDirection] = useState<Direction>('RIGHT');
@@ -24,6 +25,32 @@ export default function SnakeGame({ visible, onClose }: SnakeGameProps) {
 
   const directionRef = useRef(direction);
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cargar highscore global del backend al abrir
+  useEffect(() => {
+    if (visible) {
+      getHighscoreGlobal('snake')
+        .then(data => {
+          if (data && data.puntuacion > 0) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
+
+  // Guardar highscore cuando termina el juego
+  useEffect(() => {
+    if (gameOver && score > 0 && usuarioId) {
+      guardarHighscore('snake', usuarioId, score)
+        .then(data => {
+          if (data && data.puntuacion > highScore) {
+            setHighScore(data.puntuacion);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [gameOver, score, usuarioId, highScore]);
 
   const generateFood = useCallback((): Position => {
     let newFood: Position;

@@ -28,6 +28,24 @@ export interface Banco {
   updatedAt?: string;
 }
 
+export interface ModificacionRegistro {
+  fecha: string;
+  valoresAnteriores: {
+    dojos: number;
+    pendejos: number;
+    mimidos: number;
+    castitontos: number;
+    chescos: number;
+  };
+  valoresNuevos: {
+    dojos: number;
+    pendejos: number;
+    mimidos: number;
+    castitontos: number;
+    chescos: number;
+  };
+}
+
 export interface RegistroSemanal {
   _id: string;
   usuario: Usuario | string;
@@ -37,8 +55,14 @@ export interface RegistroSemanal {
   mimidos: number;
   castitontos: number;
   chescos: number;
+  historialModificaciones?: ModificacionRegistro[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface HistorialSemana {
+  semana: string;
+  registros: RegistroSemanal[];
 }
 
 export interface Transaccion {
