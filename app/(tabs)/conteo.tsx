@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '@/context/AppContext';
 import FormularioPuntos from '@/components/FormularioPuntos';
 import Avatar8Bit, { AVATARES_DISPONIBLES } from '@/components/Avatar8Bit';
+import PasswordModal from '@/components/PasswordModal';
 import { SmashColors } from '@/constants/theme';
 import * as api from '@/services/api';
 import { Usuario, AvatarId, RegistroSemanal } from '@/types';
@@ -76,6 +77,9 @@ export default function ConteoScreen() {
   // Easter egg: Tetris - Long press 5 segundos
   const [showTetris, setShowTetris] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Estado para modal de contraseña
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handlePipeGesture = {
     onTouchStart: () => {
@@ -151,7 +155,7 @@ export default function ConteoScreen() {
     }));
   };
 
-  const handleGuardar = async () => {
+  const handleGuardar = () => {
     const registros = Object.entries(puntosUsuarios)
       .filter(([_, puntos]) => {
         return (
@@ -170,6 +174,49 @@ export default function ConteoScreen() {
     if (registros.length === 0) {
       Alert.alert('Sin cambios', 'No hay puntos para registrar');
       return;
+    }
+
+    // Mostrar modal de contraseña
+    setShowPasswordModal(true);
+  };
+
+  const handleGuardarConfirmado = async () => {
+    const registros = Object.entries(puntosUsuarios)
+      .filter(([_, puntos]) => {
+        return (
+          puntos.dojos !== 0 ||
+          puntos.pendejos !== 0 ||
+          puntos.mimidos !== 0 ||
+          puntos.castitontos !== 0 ||
+          puntos.chescos !== 0
+        );
+      })
+      .map(([usuarioId, puntos]) => ({
+        usuarioId,
+        ...puntos,
+      }));
+
+    // Validar que los usuarios con dojos no hayan registrado ya en esta semana
+    const usuariosConDojos = registros.filter(r => r.dojos && r.dojos > 0);
+    if (usuariosConDojos.length > 0) {
+      // Verificar si alguno ya tiene registro de dojos esta semana
+      for (const registro of usuariosConDojos) {
+        const yaRegistrado = historialSemanas.some(h => {
+          const usuarioId = typeof h.usuario === 'string' ? h.usuario : h.usuario._id;
+          return usuarioId === registro.usuarioId && 
+                 h.semana === semana && 
+                 h.dojos && h.dojos > 0;
+        });
+        
+        if (yaRegistrado) {
+          const usuario = usuarios.find(u => u._id === registro.usuarioId);
+          Alert.alert(
+            '⚠️ ATENCION',
+            `${usuario?.nombre || 'El usuario'} ya tiene dojos registrados en la semana ${semana}. No se puede registrar dojos más de una vez por semana.`
+          );
+          return;
+        }
+      }
     }
 
     setGuardando(true);
@@ -658,6 +705,17 @@ export default function ConteoScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal: Contraseña para guardar */}
+      <PasswordModal
+        visible={showPasswordModal}
+        onCancel={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          setShowPasswordModal(false);
+          handleGuardarConfirmado();
+        }}
+        title="🔐 AUTORIZACIÓN REQUERIDA"
+      />
     </View>
   );
 }

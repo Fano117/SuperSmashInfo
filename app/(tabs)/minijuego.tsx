@@ -5,6 +5,7 @@ import { SmashColors, SmashSpacing, CategoryLabels, CategoryIcons } from '@/cons
 import SmashButton from '@/components/SmashButton';
 import SmashCard from '@/components/SmashCard';
 import Ruleta from '@/components/Ruleta';
+import PasswordModal from '@/components/PasswordModal';
 import { SnakeGame } from '@/components/games';
 import { crearApuesta, resolverApuesta } from '@/services/api';
 import { TipoPunto } from '@/types';
@@ -25,6 +26,9 @@ export default function MinijuegoScreen() {
   const [showSnake, setShowSnake] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Estado para modal de contraseña
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
   const opciones = modo === 'numeros'
     ? Array.from({ length: numCampos }, (_, i) => (i + 1).toString())
     : usuarios.map(u => u.nombre);
@@ -37,7 +41,7 @@ export default function MinijuegoScreen() {
     }
   };
 
-  const handleCrearApuesta = async () => {
+  const handleCrearApuesta = () => {
     if (participantesSeleccionados.length < 2) {
       Alert.alert('⚠️ ATENCION', 'Selecciona al menos 2 participantes');
       return;
@@ -48,6 +52,11 @@ export default function MinijuegoScreen() {
       return;
     }
 
+    // Mostrar modal de contraseña
+    setShowPasswordModal(true);
+  };
+
+  const handleCrearApuestaConfirmado = async () => {
     try {
       setProcesando(true);
       const apuesta = await crearApuesta(participantesSeleccionados, tipoPunto, parseFloat(cantidad));
@@ -271,6 +280,17 @@ export default function MinijuegoScreen() {
           )}
         </SmashCard>
       </View>
+
+      {/* Modal: Contraseña para crear apuesta */}
+      <PasswordModal
+        visible={showPasswordModal}
+        onCancel={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          setShowPasswordModal(false);
+          handleCrearApuestaConfirmado();
+        }}
+        title="🔐 AUTORIZACIÓN REQUERIDA"
+      />
     </ScrollView>
   );
 }
