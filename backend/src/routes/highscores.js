@@ -2,22 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { Highscore, Usuario } = require('../models');
 
-// Obtener top 10 highscores de un juego
-router.get('/:juego', async (req, res) => {
+// IMPORTANTE: Las rutas más específicas deben ir primero
+
+// Obtener el highscore global (el mas alto) de un juego
+router.get('/:juego/global', async (req, res) => {
   try {
     const { juego } = req.params;
-    const juegosValidos = ['flappy-yoshi', 'snake', 'tetris', 'pacman'];
 
-    if (!juegosValidos.includes(juego)) {
-      return res.status(400).json({ error: 'Juego no valido' });
+    const highscore = await Highscore.findOne({ juego })
+      .populate('usuario', 'nombre avatar fotoUrl')
+      .sort({ puntuacion: -1 });
+
+    if (!highscore) {
+      return res.json({ puntuacion: 0 });
     }
 
-    const highscores = await Highscore.find({ juego })
-      .populate('usuario', 'nombre avatar fotoUrl')
-      .sort({ puntuacion: -1 })
-      .limit(10);
-
-    res.json(highscores);
+    res.json(highscore);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -41,20 +41,22 @@ router.get('/:juego/usuario/:usuarioId', async (req, res) => {
   }
 });
 
-// Obtener el highscore global (el mas alto) de un juego
-router.get('/:juego/global', async (req, res) => {
+// Obtener top 10 highscores de un juego (debe ir después de las rutas más específicas)
+router.get('/:juego', async (req, res) => {
   try {
     const { juego } = req.params;
+    const juegosValidos = ['flappy-yoshi', 'snake', 'tetris', 'pacman'];
 
-    const highscore = await Highscore.findOne({ juego })
-      .populate('usuario', 'nombre avatar fotoUrl')
-      .sort({ puntuacion: -1 });
-
-    if (!highscore) {
-      return res.json({ puntuacion: 0 });
+    if (!juegosValidos.includes(juego)) {
+      return res.status(400).json({ error: 'Juego no valido' });
     }
 
-    res.json(highscore);
+    const highscores = await Highscore.find({ juego })
+      .populate('usuario', 'nombre avatar fotoUrl')
+      .sort({ puntuacion: -1 })
+      .limit(10);
+
+    res.json(highscores);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

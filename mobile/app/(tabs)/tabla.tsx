@@ -1,5 +1,6 @@
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { SmashColors, SmashSpacing, CategoryLabels } from '@/constants/smashTheme';
 import SmashCard from '@/components/SmashCard';
@@ -57,18 +58,22 @@ export default function TablaScreen() {
     }
   };
 
-  useEffect(() => {
-    cargarTabla();
-  }, []);
+  // Actualizar datos cada vez que la pantalla recibe foco
+  useFocusEffect(
+    useCallback(() => {
+      cargarTabla();
+    }, [])
+  );
 
   const cargarTabla = async () => {
     try {
       setLoading(true);
       const data = await getTablaGlobal();
       // Calculate total for each user
+      // Dojos suman, pendejos/mimidos/castitontos restan, chescos son neutrales
       const dataWithTotal = data.map(u => ({
         ...u,
-        total: (u.dojos || 0) + (u.pendejos || 0) + (u.chescos || 0) + (u.mimidos || 0) + (u.castitontos || 0),
+        total: (u.dojos || 0) - (u.pendejos || 0) - (u.mimidos || 0) - (u.castitontos || 0),
       }));
       // Sort by total descending
       dataWithTotal.sort((a, b) => (b.total || 0) - (a.total || 0));
@@ -188,12 +193,6 @@ export default function TablaScreen() {
         })}
 
         <View style={styles.buttonContainer}>
-          <SmashButton
-            title="🔄 ACTUALIZAR"
-            onPress={cargarTabla}
-            variant="secondary"
-            fullWidth
-          />
           <SmashButton
             title={exportando ? "EXPORTANDO..." : "📥 EXPORTAR EXCEL"}
             onPress={handleExportar}

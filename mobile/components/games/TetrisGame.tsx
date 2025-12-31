@@ -10,7 +10,19 @@ interface TetrisGameProps {
 
 const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
-const CELL_SIZE = Math.floor((Dimensions.get('window').width - 120) / BOARD_WIDTH);
+
+// Dimensiones responsivas
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
+// Calcular tamaño de celda basado en el espacio disponible
+// Dejamos espacio para stats (70px) y padding
+const AVAILABLE_WIDTH = Math.min(WINDOW_WIDTH * 0.75, 280) - 70;
+const AVAILABLE_HEIGHT = Math.min(WINDOW_HEIGHT * 0.5, 380);
+// Usar el menor para que quepa en pantalla
+const CELL_SIZE = Math.min(
+  Math.floor(AVAILABLE_WIDTH / BOARD_WIDTH),
+  Math.floor(AVAILABLE_HEIGHT / BOARD_HEIGHT),
+  16 // Máximo 16px por celda
+);
 
 const TETROMINOS = {
   I: { shape: [[1, 1, 1, 1]], color: '#0f380f' },
@@ -380,9 +392,11 @@ const styles = StyleSheet.create({
   gameBoy: {
     backgroundColor: '#8b956d',
     borderRadius: 20,
-    padding: 15,
+    padding: 12,
     borderWidth: 4,
     borderColor: '#5c6650',
+    maxWidth: WINDOW_WIDTH * 0.9,
+    maxHeight: WINDOW_HEIGHT * 0.85,
   },
   header: {
     alignItems: 'center',
@@ -413,8 +427,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   stats: {
-    width: 60,
-    paddingRight: 8,
+    width: 55,
+    paddingRight: 6,
   },
   statText: {
     fontSize: 8,

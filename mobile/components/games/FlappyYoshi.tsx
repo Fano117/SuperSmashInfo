@@ -8,18 +8,25 @@ interface FlappyYoshiProps {
   usuarioId?: string;
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width - 80;
-const SCREEN_HEIGHT = 400;
-const YOSHI_SIZE = 21; // 50% más pequeño (era 30)
-const YOSHI_HITBOX = 12; // Hitbox más pequeña que el sprite visual (era 18)
-const PIPE_WIDTH = 50;
-const PIPE_HITBOX_OFFSET = 10; // Reducir hitbox de tuberías ~1cm de cada lado
-const PIPE_GAP = 130; // Gap un poco más grande
-const GRAVITY = 0.5; // Gravedad más suave
+// Dimensiones responsivas basadas en el tamaño de pantalla
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
+const SCREEN_WIDTH = Math.min(WINDOW_WIDTH * 0.85, 350); // Máximo 350px, 85% del ancho
+const SCREEN_HEIGHT = Math.min(WINDOW_HEIGHT * 0.45, 400); // Máximo 400px, 45% del alto
+
+const YOSHI_SIZE = 21;
+const YOSHI_HITBOX = 12;
+const PIPE_WIDTH = Math.max(40, SCREEN_WIDTH * 0.15); // Tuberías proporcionales
+const PIPE_HITBOX_OFFSET = 10;
+const PIPE_GAP = Math.max(120, SCREEN_HEIGHT * 0.32); // Gap proporcional al alto
+const GRAVITY = 0.5;
 const JUMP_FORCE = -9;
-const BASE_PIPE_SPEED = 1.5; // Velocidad inicial muy lenta
-const SPEED_INCREMENT = 0.3; // Incremento cada 30 segundos
-const MAX_PIPE_SPEED = 4; // Velocidad máxima
+const BASE_PIPE_SPEED = 1.5;
+const SPEED_INCREMENT = 0.3;
+const MAX_PIPE_SPEED = 4;
+// Intervalo de spawn: tiempo que tarda una tubería en cruzar la pantalla + espacio extra
+// Con velocidad 1.5, una tubería tarda ~200 frames en cruzar 300px = ~3.3 segundos
+// Agregamos espacio para que haya ~1.5 anchos de pantalla entre tuberías
+const PIPE_SPAWN_INTERVAL = 3500; // 3.5 segundos - más espacio horizontal entre tuberías
 
 // Colores del huevo de Yoshi (verde -> turquesa -> azul -> rojo -> amarillo)
 const EGG_COLORS = ['#4CAF50', '#00BCD4', '#2196F3', '#F44336', '#FFEB3B'];
@@ -265,7 +272,7 @@ export default function FlappyYoshi({ visible, onClose, usuarioId }: FlappyYoshi
   useEffect(() => {
     if (visible && !isPaused && !gameOver) {
       gameLoopRef.current = setInterval(gameLoop, 1000 / 60);
-      pipeSpawnRef.current = setInterval(spawnPipe, 2000);
+      pipeSpawnRef.current = setInterval(spawnPipe, PIPE_SPAWN_INTERVAL);
       // Spawn first pipe immediately
       spawnPipe();
 
@@ -401,9 +408,11 @@ const styles = StyleSheet.create({
   gameBoy: {
     backgroundColor: '#8b956d',
     borderRadius: 20,
-    padding: 15,
+    padding: 12,
     borderWidth: 4,
     borderColor: '#5c6650',
+    maxWidth: WINDOW_WIDTH * 0.95,
+    maxHeight: WINDOW_HEIGHT * 0.85,
   },
   header: {
     alignItems: 'center',

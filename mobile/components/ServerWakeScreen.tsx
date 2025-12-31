@@ -137,9 +137,11 @@ export default function ServerWakeScreen() {
           style={[
             styles.star,
             {
-              left: star.x,
-              top: star.y,
               opacity: star.opacity,
+              transform: [
+                { translateX: star.x },
+                { translateY: star.y },
+              ],
             },
           ]}
         >
@@ -288,6 +290,8 @@ const styles = StyleSheet.create({
   },
   star: {
     position: 'absolute',
+    top: 0,
+    left: 0,
     color: '#ffd700',
     fontSize: 16,
     fontFamily: 'VT323_400Regular',
