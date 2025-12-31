@@ -191,21 +191,6 @@ export default function MinijuegoScreen() {
         {/* Seccion Minijuegos Arcade */}
         <SmashCard style={styles.card}>
           <Text style={styles.sectionTitle}>🕹️ ARCADE</Text>
-
-          <Text style={styles.label}>JUGADOR (para guardar puntuacion):</Text>
-          <View style={styles.participantesContainer}>
-            {usuarios.map(usuario => (
-              <SmashButton
-                key={usuario._id}
-                title={usuario.nombre}
-                onPress={() => setJugadorActivo(jugadorActivo === usuario._id ? null : usuario._id)}
-                variant={jugadorActivo === usuario._id ? 'fire' : 'secondary'}
-                style={styles.participanteButton}
-              />
-            ))}
-          </View>
-
-          <Text style={styles.label}>SELECCIONA UN JUEGO:</Text>
           <View style={styles.gamesGrid}>
             <SmashButton
               title="🐍 SNAKE"

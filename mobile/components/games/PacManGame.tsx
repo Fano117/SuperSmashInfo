@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { getHighscoreGlobal, guardarHighscore } from '@/services/api';
 
 interface PacManGameProps {
@@ -8,74 +8,74 @@ interface PacManGameProps {
   usuarioId?: string;
 }
 
-const CELL_SIZE = 16;
+const CELL_SIZE = 15;
 const LEVELS = [
-  // Level 1 - Simple maze
-  [
-    '#####################',
-    '#.........#.........#',
-    '#.###.###.#.###.###.#',
-    '#o#...#.....#...#.o#',
-    '#.#.#.#.###.#.#.#.#.#',
-    '#...#.....#.....#...#',
-    '###.#####.#.#####.###',
-    '###.#.....#.....#.###',
-    '#.....###.#.###.....#',
-    '#.###.# G G #.###.#',
-    '#.#...#######...#.#.#',
-    '#.#.#.........#.#.#.#',
-    '#...#.#######.#.....#',
-    '###.#.#.....#.#.###.#',
-    '#.....#.###.#.......#',
-    '#.#####.#P#.#####.#.#',
-    '#...................#',
-    '#.###.#.#####.#.###.#',
-    '#o..#...........#..o#',
-    '#####################',
-  ],
-  // Level 2 - More complex
+  // Level 1 - Classic simple maze
   [
     '#####################',
     '#o........#........o#',
-    '#.##.####.#.####.##.#',
+    '#.###.###.#.###.###.#',
+    '#.###.###.#.###.###.#',
     '#...................#',
-    '#.##.#.#####.#.##.#.#',
-    '#....#...#...#......#',
-    '####.###.#.###.#####',
-    '   #.#.......#.#    ',
-    '####.#.## ##.#.#####',
-    '#......# G #.......#',
-    '####.#.#####.#.#####',
-    '   #.#...P...#.#    ',
-    '####.#.#####.#.#####',
-    '#.........#.........#',
-    '#.##.####.#.####.##.#',
-    '#..#...........#....#',
-    '##.#.#.#####.#.#.##.#',
-    '#....#...#...#......#',
-    '#o##...#.#.#...##..o#',
+    '#.###.#.#####.#.###.#',
+    '#.....#...#...#.....#',
+    '#####.###.#.###.#####',
+    '#####.#.......#.#####',
+    '#..... .G...G. .....#',
+    '#.###.#########.###.#',
+    '#.....#.......#.....#',
+    '#####.#...P...#.#####',
+    '#####.#.#####.#.#####',
+    '#...................#',
+    '#.###.#.#####.#.###.#',
+    '#o..#.....#.....#..o#',
+    '###.#.#.#.#.#.#.#.###',
+    '#...................#',
     '#####################',
   ],
-  // Level 3 - Final challenge
+  // Level 2 - Medium difficulty
   [
     '#####################',
     '#o.................o#',
-    '#.###.#######.###.#.#',
-    '#.#.......#.......#.#',
-    '#.#.#####.#.#####.#.#',
-    '#...#.....#.....#...#',
-    '#.#.#.#########.#.#.#',
-    '#.#...#...#...#...#.#',
-    '#.#####.#.#.#.#####.#',
-    '#.......#G G#.......#',
-    '#.#####.#####.#####.#',
-    '#.#...#...P...#...#.#',
-    '#.#.#.#########.#.#.#',
-    '#...#.....#.....#...#',
-    '#.#.#####.#.#####.#.#',
-    '#.#.......#.......#.#',
-    '#.###.#######.###.#.#',
+    '#.##.###.#.###.##.#.#',
+    '#.#......#......#...#',
+    '#.#.####.#.####.#.#.#',
     '#...................#',
+    '#.###.#.###.#.###.#.#',
+    '#.....#.....#.....#.#',
+    '#.###.#.G.G.#.###.#.#',
+    '#.....#.....#.....#.#',
+    '#.###.#.###.#.###.#.#',
+    '#.#...#...P...#...#.#',
+    '#.#.#.#.#####.#.#.#.#',
+    '#...#.....#.....#...#',
+    '#.###.###.#.###.###.#',
+    '#...................#',
+    '#.#.###.#.#.###.#.#.#',
+    '#.#.....#.#.....#.#.#',
+    '#o.................o#',
+    '#####################',
+  ],
+  // Level 3 - Hard maze
+  [
+    '#####################',
+    '#o.................o#',
+    '#.#.###.###.###.#.#.#',
+    '#.#.#.....#.....#.#.#',
+    '#.#.#.###.#.###.#.#.#',
+    '#...................#',
+    '###.#.#.###.#.#.###.#',
+    '#...#.#.....#.#.....#',
+    '#.###.#.G.G.#.#.###.#',
+    '#.....#.....#.#.....#',
+    '#.###.#.###.#.#.###.#',
+    '#...#.#..P..#.#.#...#',
+    '#.#.#.#.###.#.#.#.#.#',
+    '#.#.....#.#.....#.#.#',
+    '#.#.###.#.#.###.#.#.#',
+    '#...................#',
+    '#.###.#.###.#.###.#.#',
+    '#.....#.....#.....#.#',
     '#o.................o#',
     '#####################',
   ],
@@ -88,7 +88,10 @@ interface Ghost {
   pos: Position;
   direction: Direction;
   scared: boolean;
+  color: string;
 }
+
+const GHOST_COLORS = ['#ff0000', '#00ffff', '#ffb8ff', '#ffb852'];
 
 export default function PacManGame({ visible, onClose, usuarioId }: PacManGameProps) {
   const [level, setLevel] = useState(0);
@@ -105,10 +108,24 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
   const [levelComplete, setLevelComplete] = useState(false);
   const [mouthOpen, setMouthOpen] = useState(true);
   const [highScore, setHighScore] = useState(0);
+  const [powerPelletBlink, setPowerPelletBlink] = useState(true);
 
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const powerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blinkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const directionRef = useRef(pacmanDir);
+
+  // Parpadeo de power pellets
+  useEffect(() => {
+    if (visible) {
+      blinkTimerRef.current = setInterval(() => {
+        setPowerPelletBlink(b => !b);
+      }, 300);
+    }
+    return () => {
+      if (blinkTimerRef.current) clearInterval(blinkTimerRef.current);
+    };
+  }, [visible]);
 
   // Cargar highscore global del backend al abrir
   useEffect(() => {
@@ -162,10 +179,11 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
     setPacman(pacPos);
     setPacmanDir('RIGHT');
     directionRef.current = 'RIGHT';
-    setGhosts(ghostPositions.map(pos => ({
+    setGhosts(ghostPositions.map((pos, i) => ({
       pos,
       direction: ['UP', 'DOWN', 'LEFT', 'RIGHT'][Math.floor(Math.random() * 4)] as Direction,
       scared: false,
+      color: GHOST_COLORS[i % GHOST_COLORS.length],
     })));
     setLevelComplete(false);
   }, []);
@@ -245,10 +263,14 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
     };
 
     const move = moves[directionRef.current];
+    let pacmanX = pacman.x;
+    let pacmanY = pacman.y;
     const newX = pacman.x + move.x;
     const newY = pacman.y + move.y;
 
     if (!isWall(newX, newY)) {
+      pacmanX = newX;
+      pacmanY = newY;
       setPacman({ x: newX, y: newY });
 
       // Check dot
@@ -288,31 +310,45 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
       }
     }
 
-    // Move ghosts
-    setGhosts(prev => prev.map(moveGhost));
-
-    // Check ghost collision
+    // Move ghosts and check collision in one operation
     setGhosts(prev => {
-      let newGhosts = [...prev];
-      newGhosts.forEach((ghost, i) => {
-        if (Math.abs(ghost.pos.x - newX) <= 0.5 && Math.abs(ghost.pos.y - newY) <= 0.5) {
+      const movedGhosts = prev.map(moveGhost);
+      let collisionHandled = false;
+
+      // Check collision with each ghost
+      for (let i = 0; i < movedGhosts.length; i++) {
+        const ghost = movedGhosts[i];
+        const prevGhost = prev[i];
+
+        // Check if ghost is at pacman's position (exact match)
+        const ghostAtPacman = ghost.pos.x === pacmanX && ghost.pos.y === pacmanY;
+        const prevGhostAtPacman = prevGhost.pos.x === pacmanX && prevGhost.pos.y === pacmanY;
+
+        // Also check if they crossed paths (pacman moved to where ghost was, ghost moved to where pacman was)
+        const crossedPaths = (prevGhost.pos.x === pacmanX && prevGhost.pos.y === pacmanY) ||
+                            (ghost.pos.x === pacman.x && ghost.pos.y === pacman.y);
+
+        if ((ghostAtPacman || prevGhostAtPacman || crossedPaths) && !collisionHandled) {
+          collisionHandled = true;
+
           if (powerMode) {
             setScore(s => s + 200);
-            newGhosts[i] = { ...ghost, pos: { x: 10, y: 9 } };
+            movedGhosts[i] = { ...ghost, pos: { x: 10, y: 9 } };
           } else {
             setLives(l => {
               const newLives = l - 1;
               if (newLives <= 0) {
                 setGameOver(true);
               } else {
-                initLevel(level);
+                setTimeout(() => initLevel(level), 100);
               }
               return newLives;
             });
           }
         }
-      });
-      return newGhosts;
+      }
+
+      return movedGhosts;
     });
   }, [gameOver, isPaused, levelComplete, pacman, dots, maze, isWall, powerMode, moveGhost, level, initLevel]);
 
@@ -349,14 +385,23 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
 
   if (!visible) return null;
 
-  const getPacmanChar = () => {
-    if (!mouthOpen) return '●';
-    switch (pacmanDir) {
-      case 'RIGHT': return '>';
-      case 'LEFT': return '<';
-      case 'UP': return '∧';
-      case 'DOWN': return '∨';
-    }
+  // Determinar si una celda de pared tiene vecinos para dibujar bordes
+  const getWallStyle = (x: number, y: number) => {
+    const row = maze[y] || '';
+    const isCurrentWall = row[x] === '#';
+    if (!isCurrentWall) return null;
+
+    const hasTop = y > 0 && (maze[y - 1]?.[x] === '#');
+    const hasBottom = y < maze.length - 1 && (maze[y + 1]?.[x] === '#');
+    const hasLeft = x > 0 && row[x - 1] === '#';
+    const hasRight = x < row.length - 1 && row[x + 1] === '#';
+
+    return {
+      borderTopWidth: hasTop ? 0 : 2,
+      borderBottomWidth: hasBottom ? 0 : 2,
+      borderLeftWidth: hasLeft ? 0 : 2,
+      borderRightWidth: hasRight ? 0 : 2,
+    };
   };
 
   return (
@@ -372,10 +417,22 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
             <View style={styles.screen}>
               {/* HUD */}
               <View style={styles.hud}>
-                <Text style={styles.hudText}>LVL:{level + 1}</Text>
-                <Text style={styles.hudText}>SCORE:{score}</Text>
-                <Text style={styles.hudText}>HI:{highScore}</Text>
-                <Text style={styles.hudText}>{'❤️'.repeat(lives)}</Text>
+                <View style={styles.hudItem}>
+                  <Text style={styles.hudLabel}>LEVEL</Text>
+                  <Text style={styles.hudValue}>{level + 1}</Text>
+                </View>
+                <View style={styles.hudItem}>
+                  <Text style={styles.hudLabel}>SCORE</Text>
+                  <Text style={styles.hudValue}>{score}</Text>
+                </View>
+                <View style={styles.hudItem}>
+                  <Text style={styles.hudLabel}>HIGH</Text>
+                  <Text style={styles.hudValue}>{highScore}</Text>
+                </View>
+                <View style={styles.hudItem}>
+                  <Text style={styles.hudLabel}>LIVES</Text>
+                  <Text style={styles.hudLives}>{'🟡'.repeat(lives)}</Text>
+                </View>
               </View>
 
               {/* Maze */}
@@ -387,19 +444,61 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
                       const ghost = ghosts.find(g => g.pos.x === x && g.pos.y === y);
                       const hasDot = dots.has(`${x},${y}`);
                       const isPowerPellet = cell === 'o' && hasDot;
+                      const isWallCell = cell === '#';
+                      const isPath = cell !== '#' && cell !== ' ';
+                      const wallBorders = getWallStyle(x, y);
 
                       return (
-                        <View key={x} style={[styles.cell, cell === '#' && styles.wall]}>
+                        <View
+                          key={x}
+                          style={[
+                            styles.cell,
+                            isPath && styles.path,
+                            isWallCell && styles.wall,
+                            isWallCell && wallBorders,
+                          ]}
+                        >
                           {isPacman && (
-                            <Text style={styles.pacman}>{getPacmanChar()}</Text>
+                            <View style={[
+                              styles.pacmanContainer,
+                              pacmanDir === 'LEFT' && styles.pacmanLeft,
+                              pacmanDir === 'UP' && styles.pacmanUp,
+                              pacmanDir === 'DOWN' && styles.pacmanDown,
+                            ]}>
+                              <View style={styles.pacmanBody}>
+                                {mouthOpen && <View style={styles.pacmanMouth} />}
+                                <View style={styles.pacmanEye} />
+                              </View>
+                            </View>
                           )}
                           {ghost && (
-                            <Text style={[styles.ghost, ghost.scared && styles.scaredGhost]}>
-                              {ghost.scared ? '👻' : '👾'}
-                            </Text>
+                            <View style={[
+                              styles.ghostContainer,
+                              { backgroundColor: ghost.scared ? '#2121de' : ghost.color }
+                            ]}>
+                              <View style={styles.ghostEyes}>
+                                <View style={styles.ghostEye}>
+                                  <View style={styles.ghostPupil} />
+                                </View>
+                                <View style={styles.ghostEye}>
+                                  <View style={styles.ghostPupil} />
+                                </View>
+                              </View>
+                              <View style={styles.ghostBottom}>
+                                <View style={styles.ghostWave} />
+                                <View style={styles.ghostWave} />
+                                <View style={styles.ghostWave} />
+                              </View>
+                            </View>
                           )}
-                          {!isPacman && !ghost && hasDot && (
-                            <View style={[styles.dot, isPowerPellet && styles.powerPellet]} />
+                          {!isPacman && !ghost && hasDot && !isPowerPellet && (
+                            <View style={styles.dot} />
+                          )}
+                          {!isPacman && !ghost && isPowerPellet && (
+                            <View style={[
+                              styles.powerPellet,
+                              powerPelletBlink && styles.powerPelletBlink
+                            ]} />
                           )}
                         </View>
                       );
@@ -411,10 +510,13 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
               {/* Messages */}
               {(gameOver || isPaused || levelComplete) && (
                 <View style={styles.messageOverlay}>
-                  <Text style={styles.messageText}>
-                    {gameOver ? (level >= LEVELS.length - 1 && lives > 0 ? 'YOU WIN!' : 'GAME OVER') :
-                     levelComplete ? `LEVEL ${level + 1} COMPLETE!` : 'PRESS START'}
-                  </Text>
+                  <View style={styles.messageBox}>
+                    <Text style={styles.messageText}>
+                      {gameOver ? (level >= LEVELS.length - 1 && lives > 0 ? '🏆 YOU WIN!' : '💀 GAME OVER') :
+                       levelComplete ? `✨ LEVEL ${level + 1} COMPLETE!` : '🕹️ PRESS START'}
+                    </Text>
+                    {gameOver && <Text style={styles.messageScore}>FINAL SCORE: {score}</Text>}
+                  </View>
                 </View>
               )}
             </View>
@@ -457,7 +559,7 @@ export default function PacManGame({ visible, onClose, usuarioId }: PacManGamePr
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.95)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -479,16 +581,19 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   gameTitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#ffff00',
     fontWeight: 'bold',
     letterSpacing: 4,
+    textShadowColor: '#ff0',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   screenContainer: {
     backgroundColor: '#000',
-    padding: 4,
+    padding: 6,
     borderRadius: 4,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#333',
   },
   screen: {
@@ -498,15 +603,32 @@ const styles = StyleSheet.create({
   hud: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    backgroundColor: '#111',
+    borderRadius: 2,
   },
-  hudText: {
-    color: '#fff',
-    fontSize: 10,
+  hudItem: {
+    alignItems: 'center',
+  },
+  hudLabel: {
+    color: '#888',
+    fontSize: 8,
     fontWeight: 'bold',
+  },
+  hudValue: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  hudLives: {
+    fontSize: 10,
   },
   maze: {
     alignItems: 'center',
+    backgroundColor: '#000',
+    padding: 2,
   },
   mazeRow: {
     flexDirection: 'row',
@@ -517,45 +639,147 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  path: {
+    backgroundColor: '#0a0a1a',
+  },
   wall: {
-    backgroundColor: '#2121de',
-    borderWidth: 1,
-    borderColor: '#5555ff',
+    backgroundColor: '#1a1aff',
+    borderColor: '#4a4aff',
   },
-  pacman: {
-    color: '#ffff00',
-    fontSize: 12,
-    fontWeight: 'bold',
+  // Pacman styles
+  pacmanContainer: {
+    width: CELL_SIZE - 2,
+    height: CELL_SIZE - 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  ghost: {
-    fontSize: 12,
+  pacmanBody: {
+    width: CELL_SIZE - 2,
+    height: CELL_SIZE - 2,
+    backgroundColor: '#ffff00',
+    borderRadius: CELL_SIZE,
+    overflow: 'hidden',
   },
-  scaredGhost: {
-    opacity: 0.7,
+  pacmanMouth: {
+    position: 'absolute',
+    right: -1,
+    top: '50%',
+    marginTop: -5,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderTopWidth: 5,
+    borderBottomWidth: 5,
+    borderLeftColor: '#0a0a1a',
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
   },
-  dot: {
+  pacmanEye: {
+    position: 'absolute',
+    top: 2,
+    right: 3,
+    width: 3,
+    height: 3,
+    backgroundColor: '#000',
+    borderRadius: 2,
+  },
+  pacmanLeft: {
+    transform: [{ rotate: '180deg' }],
+  },
+  pacmanUp: {
+    transform: [{ rotate: '-90deg' }],
+  },
+  pacmanDown: {
+    transform: [{ rotate: '90deg' }],
+  },
+  // Ghost styles
+  ghostContainer: {
+    width: CELL_SIZE - 3,
+    height: CELL_SIZE - 2,
+    borderTopLeftRadius: CELL_SIZE / 2,
+    borderTopRightRadius: CELL_SIZE / 2,
+    overflow: 'hidden',
+  },
+  ghostEyes: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
+  ghostEye: {
     width: 4,
     height: 4,
+    backgroundColor: '#fff',
     borderRadius: 2,
-    backgroundColor: '#ffb8ae',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ghostPupil: {
+    width: 2,
+    height: 2,
+    backgroundColor: '#00f',
+    borderRadius: 1,
+  },
+  ghostBottom: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+  },
+  ghostWave: {
+    flex: 1,
+    height: 3,
+    backgroundColor: 'transparent',
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  // Dots
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#ffb897',
   },
   powerPellet: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ffb8ae',
+    backgroundColor: '#ffb897',
   },
+  powerPelletBlink: {
+    backgroundColor: '#fff',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+  },
+  // Messages
   messageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageBox: {
+    backgroundColor: '#1a1a2e',
+    padding: 20,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: '#ffff00',
     alignItems: 'center',
   },
   messageText: {
     fontSize: 16,
     color: '#ffff00',
     fontWeight: 'bold',
+    textAlign: 'center',
   },
+  messageScore: {
+    fontSize: 12,
+    color: '#fff',
+    marginTop: 8,
+  },
+  // Controls
   controls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -567,57 +791,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dpadBtn: {
-    width: 35,
-    height: 35,
-    backgroundColor: '#333',
+    width: 40,
+    height: 40,
+    backgroundColor: '#2a2a3e',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#3a3a4e',
   },
   dpadUp: {
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
+    borderBottomWidth: 0,
   },
   dpadDown: {
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
+    borderTopWidth: 0,
   },
   dpadLeft: {
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
+    borderRightWidth: 0,
   },
   dpadRight: {
     borderTopRightRadius: 8,
     borderBottomRightRadius: 8,
+    borderLeftWidth: 0,
   },
   dpadMiddle: {
     flexDirection: 'row',
   },
   dpadCenter: {
-    width: 35,
-    height: 35,
-    backgroundColor: '#333',
+    width: 40,
+    height: 40,
+    backgroundColor: '#2a2a3e',
+    borderWidth: 2,
+    borderColor: '#3a3a4e',
   },
   dpadText: {
-    color: '#888',
-    fontSize: 14,
+    color: '#aaa',
+    fontSize: 16,
   },
   startBtn: {
-    backgroundColor: '#333',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor: '#ff0000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#aa0000',
   },
   startBtnText: {
-    color: '#888',
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
+    letterSpacing: 2,
   },
   closeBtn: {
     marginTop: 15,
     alignItems: 'center',
+    padding: 8,
   },
   closeBtnText: {
-    color: '#666',
+    color: '#888',
     fontSize: 12,
     fontWeight: 'bold',
   },

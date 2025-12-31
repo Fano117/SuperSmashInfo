@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { SmashColors, CategoryIcons } from '@/constants/theme';
-import { TipoPunto, Usuario, AvatarId } from '@/types';
+import { TipoPunto, AvatarId } from '@/types';
 import Avatar8Bit from './Avatar8Bit';
 
 interface FormularioPuntosProps {
@@ -70,25 +70,41 @@ export default function FormularioPuntos({
   theme = 'mario',
 }: FormularioPuntosProps) {
   const [puntos, setPuntos] = useState(valoresIniciales);
+  const [editando, setEditando] = useState<TipoPunto | null>(null);
+  const [valorTemporal, setValorTemporal] = useState('');
   const colors = themeColors[theme];
 
-  // Sincronizar estado cuando valoresIniciales cambie (ej: después de guardar)
   useEffect(() => {
     setPuntos(valoresIniciales);
   }, [valoresIniciales.dojos, valoresIniciales.pendejos, valoresIniciales.mimidos, valoresIniciales.castitontos, valoresIniciales.chescos]);
 
   const handleChange = (key: TipoPunto, delta: number) => {
-    const nuevoValor = Math.round((puntos[key] + delta) * 100) / 100;
+    const nuevoValor = Math.max(0, Math.round((puntos[key] + delta) * 100) / 100);
     const nuevosPuntos = { ...puntos, [key]: nuevoValor };
     setPuntos(nuevosPuntos);
     onChange(nuevosPuntos);
   };
 
-  const handleInputChange = (key: TipoPunto, value: string) => {
-    const numValue = parseFloat(value) || 0;
-    const nuevosPuntos = { ...puntos, [key]: numValue };
-    setPuntos(nuevosPuntos);
-    onChange(nuevosPuntos);
+  const abrirEditor = (key: TipoPunto) => {
+    setEditando(key);
+    setValorTemporal(puntos[key].toString());
+  };
+
+  const confirmarEdicion = () => {
+    if (editando) {
+      const numValue = parseFloat(valorTemporal) || 0;
+      const nuevosPuntos = { ...puntos, [editando]: Math.max(0, numValue) };
+      setPuntos(nuevosPuntos);
+      onChange(nuevosPuntos);
+    }
+    setEditando(null);
+    setValorTemporal('');
+  };
+
+  const formatearNumero = (num: number) => {
+    if (num === 0) return '0';
+    if (Number.isInteger(num)) return num.toString();
+    return num.toFixed(1);
   };
 
   return (
@@ -106,11 +122,12 @@ export default function FormularioPuntos({
 
       {categorias.map((cat) => (
         <View key={cat.key} style={styles.row}>
-          <Text style={styles.icon}>{cat.icon}</Text>
-          <Text style={[styles.label, { color: cat.color }]}>{cat.label}</Text>
+          <View style={styles.categoryInfo}>
+            <Text style={styles.icon}>{cat.icon}</Text>
+            <Text style={[styles.label, { color: cat.color }]}>{cat.label}</Text>
+          </View>
 
           <View style={styles.controls}>
-            {/* Boton -1 */}
             <TouchableOpacity
               style={[styles.button, styles.buttonMinus]}
               onPress={() => handleChange(cat.key, -1)}
@@ -118,7 +135,6 @@ export default function FormularioPuntos({
               <Text style={styles.buttonText}>-1</Text>
             </TouchableOpacity>
 
-            {/* Boton -0.5 */}
             <TouchableOpacity
               style={[styles.button, styles.buttonMinus, styles.buttonSmall]}
               onPress={() => handleChange(cat.key, -0.5)}
@@ -126,16 +142,15 @@ export default function FormularioPuntos({
               <Text style={styles.buttonTextSmall}>-.5</Text>
             </TouchableOpacity>
 
-            {/* Input */}
-            <TextInput
-              style={styles.input}
-              value={puntos[cat.key].toString()}
-              onChangeText={(v) => handleInputChange(cat.key, v)}
-              keyboardType="numeric"
-              selectTextOnFocus
-            />
+            <TouchableOpacity
+              style={styles.valueContainer}
+              onPress={() => abrirEditor(cat.key)}
+            >
+              <Text style={styles.valueText}>
+                {formatearNumero(puntos[cat.key])}
+              </Text>
+            </TouchableOpacity>
 
-            {/* Boton +0.5 */}
             <TouchableOpacity
               style={[styles.button, styles.buttonPlus, styles.buttonSmall]}
               onPress={() => handleChange(cat.key, 0.5)}
@@ -143,7 +158,6 @@ export default function FormularioPuntos({
               <Text style={styles.buttonTextSmall}>+.5</Text>
             </TouchableOpacity>
 
-            {/* Boton +1 */}
             <TouchableOpacity
               style={[styles.button, styles.buttonPlus]}
               onPress={() => handleChange(cat.key, 1)}
@@ -154,13 +168,55 @@ export default function FormularioPuntos({
         </View>
       ))}
 
-      {/* Total - Dojos suman, pendejos/mimidos/castitontos restan, chescos neutrales */}
       <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
         <Text style={styles.totalLabel}>TOTAL</Text>
         <Text style={styles.totalValue}>
           {(puntos.dojos - puntos.pendejos - puntos.mimidos - puntos.castitontos).toFixed(1)}
         </Text>
       </View>
+
+      {/* Modal para editar valor manualmente */}
+      <Modal
+        visible={editando !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditando(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setEditando(null)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {editando && categorias.find(c => c.key === editando)?.icon}{' '}
+              {editando && categorias.find(c => c.key === editando)?.label}
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={valorTemporal}
+              onChangeText={setValorTemporal}
+              keyboardType="decimal-pad"
+              autoFocus
+              selectTextOnFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setEditando(null)}
+              >
+                <Text style={styles.modalButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={confirmarEdicion}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -197,30 +253,32 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 0,
   },
-  themeEmoji: {
-    fontSize: 24,
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: SmashColors.backgroundPrimary,
   },
+  categoryInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   icon: {
     fontSize: 20,
-    width: 30,
+    marginRight: 8,
   },
   label: {
-    flex: 1,
     fontSize: 14,
     fontWeight: 'bold',
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   button: {
     width: 36,
@@ -229,6 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: SmashColors.textWhite,
+    borderRadius: 4,
   },
   buttonSmall: {
     width: 32,
@@ -250,18 +309,23 @@ const styles = StyleSheet.create({
   },
   buttonTextSmall: {
     color: SmashColors.textWhite,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
   },
-  input: {
-    width: 60,
+  valueContainer: {
+    minWidth: 48,
     height: 36,
     backgroundColor: SmashColors.backgroundPrimary,
     borderWidth: 2,
     borderColor: SmashColors.textWhite,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  valueText: {
     color: SmashColors.textWhite,
-    textAlign: 'center',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   totalRow: {
@@ -285,5 +349,65 @@ const styles = StyleSheet.create({
     textShadowColor: SmashColors.accentPrimary,
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 0,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: SmashColors.backgroundSecondary,
+    borderWidth: 4,
+    borderColor: SmashColors.gold,
+    padding: 20,
+    width: '80%',
+    maxWidth: 300,
+    borderRadius: 8,
+  },
+  modalTitle: {
+    color: SmashColors.textWhite,
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: SmashColors.backgroundPrimary,
+    borderWidth: 2,
+    borderColor: SmashColors.textWhite,
+    color: SmashColors.textWhite,
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    padding: 12,
+    borderRadius: 4,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  modalButtonCancel: {
+    backgroundColor: SmashColors.accentPrimary,
+    borderColor: '#aa0000',
+  },
+  modalButtonConfirm: {
+    backgroundColor: SmashColors.greenVictory,
+    borderColor: '#006600',
+  },
+  modalButtonText: {
+    color: SmashColors.textWhite,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

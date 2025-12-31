@@ -209,7 +209,14 @@ export default function DojoScreen() {
     const numCosas = cosasDisponibles.length;
     const sliceAngle = 360 / numCosas;
     const randomIndex = Math.floor(Math.random() * numCosas);
-    const targetAngle = 360 - (randomIndex * sliceAngle + sliceAngle / 2);
+
+    // La ruleta se dibuja con el primer segmento (index 0) empezando en las 12 en punto
+    // Para que el segmento randomIndex quede arriba donde está la flecha:
+    // - El centro del segmento 0 está en sliceAngle/2 grados
+    // - El centro del segmento N está en (N * sliceAngle) + (sliceAngle/2)
+    // - Necesitamos rotar para que ese centro quede en 0° (arriba)
+    const segmentCenterAngle = randomIndex * sliceAngle + sliceAngle / 2;
+    const targetAngle = 360 - segmentCenterAngle;
     const totalRotation = rotationDegrees + 1800 + targetAngle; // 5 vueltas + angulo final
 
     Animated.timing(rotationAnim, {
@@ -221,10 +228,8 @@ export default function DojoScreen() {
       setRotationDegrees(totalRotation);
       setGirando(false);
 
-      // Determinar ganador
-      const normalizedAngle = totalRotation % 360;
-      const winnerIndex = Math.floor(((360 - normalizedAngle + sliceAngle / 2) % 360) / sliceAngle) % numCosas;
-      const ganadora = cosasDisponibles[winnerIndex];
+      // El ganador es el randomIndex que calculamos al inicio
+      const ganadora = cosasDisponibles[randomIndex];
 
       setCosaGanadora(ganadora);
       setModalJugador(true);
