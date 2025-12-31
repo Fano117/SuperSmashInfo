@@ -161,7 +161,7 @@ export default function BancoScreen() {
   const [descripcionGasto, setDescripcionGasto] = useState('');
   const [showPasswordModalGasto, setShowPasswordModalGasto] = useState(false);
   const [procesandoGasto, setProcesandoGasto] = useState(false);
-  const [usuarioGastoId, setUsuarioGastoId] = useState<string | null>(null);
+  const [usuariosGastoIds, setUsuariosGastoIds] = useState<string[]>([]);
 
   useEffect(() => {
     cargarDatos();
@@ -223,8 +223,8 @@ export default function BancoScreen() {
   };
 
   const handleGasto = () => {
-    if (!usuarioGastoId) {
-      Alert.alert('Yoshi!', 'Selecciona al jugador que realizará el gasto');
+    if (usuariosGastoIds.length === 0) {
+      Alert.alert('Yoshi!', 'Selecciona al menos un jugador para el gasto');
       return;
     }
 
@@ -249,18 +249,31 @@ export default function BancoScreen() {
   };
 
   const handleGastoConfirmado = async () => {
-    if (!usuarioGastoId || !montoGasto || !descripcionGasto.trim()) return;
+    if (usuariosGastoIds.length === 0 || !montoGasto || !descripcionGasto.trim()) return;
 
-    const montoNum = parseFloat(montoGasto);
+    const montoTotal = parseFloat(montoGasto);
+    const cantidadUsuarios = usuariosGastoIds.length;
+    // Dividir el monto entre los usuarios seleccionados
+    const montoPorUsuario = montoTotal / cantidadUsuarios;
 
     setProcesandoGasto(true);
     try {
-      await api.registrarGasto(usuarioGastoId, montoNum, descripcionGasto.trim());
+      // Registrar gasto para cada usuario con el monto dividido
+      const promesasGasto = usuariosGastoIds.map(usuarioId =>
+        api.registrarGasto(usuarioId, montoPorUsuario, descripcionGasto.trim())
+      );
+      await Promise.all(promesasGasto);
       await Promise.all([refreshBanco(), refreshUsuarios(), cargarDatos()]);
       setMontoGasto('');
       setDescripcionGasto('');
-      setUsuarioGastoId(null);
-      Alert.alert('Yoshi!', 'Gasto registrado correctamente');
+      setUsuariosGastoIds([]);
+      const montoFormateado = montoPorUsuario.toFixed(2);
+      Alert.alert(
+        'Yoshi!',
+        cantidadUsuarios > 1
+          ? `Gasto de $${montoTotal.toFixed(2)} dividido entre ${cantidadUsuarios} jugadores ($${montoFormateado} c/u)`
+          : 'Gasto registrado correctamente'
+      );
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Error al registrar gasto');
     } finally {
@@ -493,10 +506,10 @@ export default function BancoScreen() {
             <Text style={styles.sectionTitle}>REGISTRAR GASTO</Text>
           </View>
 
-          {/* Selector de usuario para gasto */}
+          {/* Selector de usuarios para gasto (selección múltiple) */}
           <View style={styles.userSelector}>
             {usuarios.map((usuario) => {
-              const isSelected = usuarioGastoId === usuario._id;
+              const isSelected = usuariosGastoIds.includes(usuario._id);
               return (
                 <TouchableOpacity
                   key={usuario._id}
@@ -504,7 +517,13 @@ export default function BancoScreen() {
                     styles.userCard,
                     isSelected && styles.userCardSelectedGasto,
                   ]}
-                  onPress={() => setUsuarioGastoId(isSelected ? null : usuario._id)}
+                  onPress={() => {
+                    setUsuariosGastoIds(prev =>
+                      isSelected
+                        ? prev.filter(id => id !== usuario._id)
+                        : [...prev, usuario._id]
+                    );
+                  }}
                 >
                   <View style={styles.userEggContainer}>
                     <YoshiEgg size={32} spots={false} />
@@ -526,6 +545,21 @@ export default function BancoScreen() {
               );
             })}
           </View>
+          {/* Mostrar información de división cuando hay múltiples usuarios */}
+          {usuariosGastoIds.length > 1 && montoGasto && !isNaN(parseFloat(montoGasto)) && (
+            <View style={styles.multiSelectInfoGasto}>
+              <Text style={styles.multiSelectTextGasto}>
+                {usuariosGastoIds.length} jugadores → ${(parseFloat(montoGasto) / usuariosGastoIds.length).toFixed(2)} c/u
+              </Text>
+            </View>
+          )}
+          {usuariosGastoIds.length > 1 && !montoGasto && (
+            <View style={styles.multiSelectInfoGasto}>
+              <Text style={styles.multiSelectTextGasto}>
+                {usuariosGastoIds.length} jugadores seleccionados (se dividirá el monto)
+              </Text>
+            </View>
+          )}
 
           <View style={styles.inputSection}>
             <View style={styles.inputRow}>
@@ -1334,5 +1368,22 @@ const styles = StyleSheet.create({
     color: YoshiHouseColors.grassLight,
     fontSize: 11,
     fontStyle: 'italic',
+  },
+  // Indicador de selección múltiple para gastos
+  multiSelectInfoGasto: {
+    backgroundColor: '#FFE0E0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: YoshiHouseColors.red,
+    alignItems: 'center',
+  },
+  multiSelectTextGasto: {
+    color: YoshiHouseColors.red,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
