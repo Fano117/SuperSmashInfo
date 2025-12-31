@@ -4,6 +4,7 @@ const RegistroSemanal = require('./RegistroSemanal');
 const Transaccion = require('./Transaccion');
 const Apuesta = require('./Apuesta');
 const Highscore = require('./Highscore');
+const DojoRifa = require('./DojoRifa');
 
 module.exports = {
   Usuario,
@@ -11,5 +12,6 @@ module.exports = {
   RegistroSemanal,
   Transaccion,
   Apuesta,
-  Highscore
+  Highscore,
+  DojoRifa
 };

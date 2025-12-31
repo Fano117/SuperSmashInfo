@@ -9,6 +9,8 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppProvider } from '@/context/AppContext';
+import { ServerWakeProvider } from '@/context/ServerWakeContext';
+import ServerWakeScreen from '@/components/ServerWakeScreen';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -36,14 +38,17 @@ export default function RootLayout() {
   }
 
   return (
-    <AppProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
-        <StatusBar style="light" />
-      </ThemeProvider>
-    </AppProvider>
+    <ServerWakeProvider>
+      <AppProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+          <StatusBar style="light" />
+          <ServerWakeScreen />
+        </ThemeProvider>
+      </AppProvider>
+    </ServerWakeProvider>
   );
 }

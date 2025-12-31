@@ -18,7 +18,7 @@ const { width } = Dimensions.get('window');
 const characterEmojis = {
   conteo: '🍄',      // Mario
   minijuego: '🔫',   // Samus
-  tabla: '🎮',       // Game & Watch
+  dojo: '👊',        // Dojo del Negro
   banco: '🦖',       // Yoshi
 };
 
@@ -191,13 +191,13 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.menuButton, styles.menuButtonGameWatch]}
-            onPress={() => router.push('/(tabs)/tabla')}
+            style={[styles.menuButton, styles.menuButtonDojo]}
+            onPress={() => router.push('/(tabs)/dojo')}
           >
-            <Text style={styles.menuButtonEmoji}>{characterEmojis.tabla}</Text>
+            <Text style={styles.menuButtonEmoji}>{characterEmojis.dojo}</Text>
             <View style={styles.menuButtonContent}>
-              <Text style={styles.menuButtonText}>TABLA GLOBAL</Text>
-              <Text style={styles.menuButtonDesc}>Rankings y stats</Text>
+              <Text style={styles.menuButtonText}>DOJO DEL NEGRO</Text>
+              <Text style={styles.menuButtonDesc}>Modo especial</Text>
             </View>
             <Text style={styles.menuButtonArrow}>▶</Text>
           </TouchableOpacity>
@@ -410,8 +410,8 @@ const styles = StyleSheet.create({
   menuButtonMetroid: {
     backgroundColor: '#ff6600',
   },
-  menuButtonGameWatch: {
-    backgroundColor: '#2d2d2d',
+  menuButtonDojo: {
+    backgroundColor: '#1a1a1a',
   },
   menuButtonYoshi: {
     backgroundColor: '#7cb342',

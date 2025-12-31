@@ -13,6 +13,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TetrisGame } from '@/components/games';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,6 +40,7 @@ const CONTEO_STORAGE_KEY = 'conteo_semanal_puntos';
 
 
 export default function ConteoScreen() {
+  const router = useRouter();
   const { usuarios, refreshUsuarios, loading } = useApp();
   const [puntosUsuarios, setPuntosUsuarios] = useState<{
     [key: string]: {
@@ -81,6 +83,29 @@ export default function ConteoScreen() {
   const [historialCompleto, setHistorialCompleto] = useState<HistorialSemana[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [semanaExpandida, setSemanaExpandida] = useState<string | null>(null);
+
+  // Estados para modal de ganadores anuales
+  const [modalGanadores, setModalGanadores] = useState(false);
+  const [anioExpandido, setAnioExpandido] = useState<string | null>('2025');
+
+  // Datos de ganadores por año (datos estáticos)
+  const ganadoresAnuales: { [anio: string]: { categoria: string; emoji: string; ganador: string }[] } = {
+    '2024': [
+      { categoria: 'DOJO', emoji: '🏆', ganador: 'FANO' },
+      { categoria: 'PENDEJO', emoji: '🧢', ganador: 'MIKEY BLANCO' },
+      { categoria: 'MIMIDO', emoji: '🛏️', ganador: 'MIKEY NEGRO' },
+      { categoria: 'CHESCOS', emoji: '🥤', ganador: 'CHINO' },
+      { categoria: 'CAMPEÓN GENERAL', emoji: '👑', ganador: 'FANO' },
+    ],
+    '2025': [
+      { categoria: 'DOJO', emoji: '🏆', ganador: 'FANO' },
+      { categoria: 'PENDEJO', emoji: '🧢', ganador: 'MIKEY BLANCO' },
+      { categoria: 'MIMIDO', emoji: '🛏️', ganador: 'CHINO' },
+      { categoria: 'CASTITONTO', emoji: '🤡', ganador: 'MIKEY BLANCO' },
+      { categoria: 'CHESCOS', emoji: '🥤', ganador: 'FANO' },
+      { categoria: 'CAMPEÓN GENERAL', emoji: '👑', ganador: 'FANO' },
+    ],
+  };
 
   // Estados para edición de registro
   const [modalEditarRegistro, setModalEditarRegistro] = useState(false);
@@ -487,6 +512,18 @@ export default function ConteoScreen() {
               onPress={handleAbrirHistorial}
             >
               <Text style={styles.actionButtonEmoji}>📜</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.tablaButton]}
+              onPress={() => router.push('/(tabs)/tabla')}
+            >
+              <Text style={styles.actionButtonEmoji}>📊</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.podioButton]}
+              onPress={() => setModalGanadores(true)}
+            >
+              <Text style={styles.actionButtonEmoji}>🏅</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
@@ -1245,6 +1282,78 @@ export default function ConteoScreen() {
         </View>
       </Modal>
 
+      {/* Modal: Ganadores Anuales */}
+      <Modal
+        visible={modalGanadores}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalGanadores(false)}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.modalGanadoresOverlay}>
+          <View style={[styles.modalContent, styles.modalGanadoresContent]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🏅 HALL DE LA FAMA</Text>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setModalGanadores(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.ganadoresScroll}>
+              {Object.keys(ganadoresAnuales).sort().reverse().map((anio) => (
+                <View key={anio} style={styles.anioSection}>
+                  <TouchableOpacity
+                    style={styles.anioSectionHeader}
+                    onPress={() => setAnioExpandido(
+                      anioExpandido === anio ? null : anio
+                    )}
+                  >
+                    <Text style={styles.anioSectionTitle}>
+                      {anioExpandido === anio ? '▼' : '▶'} {anio}
+                    </Text>
+                    <Text style={styles.anioSectionIcon}>🏆</Text>
+                  </TouchableOpacity>
+
+                  {anioExpandido === anio && (
+                    <View style={styles.anioSectionBody}>
+                      <View style={styles.ganadoresTable}>
+                        <View style={styles.ganadoresTableHeader}>
+                          <Text style={[styles.ganadoresCell, styles.ganadoresCellCategoria]}>CATEGORÍA</Text>
+                          <Text style={[styles.ganadoresCell, styles.ganadoresCellGanador]}>GANADOR</Text>
+                        </View>
+                        {ganadoresAnuales[anio].map((item, index) => (
+                          <View
+                            key={index}
+                            style={[
+                              styles.ganadoresTableRow,
+                              item.categoria === 'CAMPEÓN GENERAL' && styles.ganadoresRowCampeon
+                            ]}
+                          >
+                            <Text style={[styles.ganadoresCell, styles.ganadoresCellCategoria]}>
+                              {item.emoji} {item.categoria}
+                            </Text>
+                            <Text style={[
+                              styles.ganadoresCell,
+                              styles.ganadoresCellGanador,
+                              item.categoria === 'CAMPEÓN GENERAL' && styles.ganadoresCellCampeon
+                            ]}>
+                              {item.ganador}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal: Contraseña para guardar */}
       <PasswordModal
         visible={showPasswordModal}
@@ -1695,6 +1804,9 @@ const styles = StyleSheet.create({
   historialButton: {
     backgroundColor: MarioColors.green,
   },
+  tablaButton: {
+    backgroundColor: '#2d2d2d',
+  },
   // Estilos del modal de historial completo
   modalHistorialContent: {
     flex: 1,
@@ -1880,5 +1992,94 @@ const styles = StyleSheet.create({
     maxHeight: '100%',
     width: '100%',
     margin: 0,
+  },
+  // Estilos del botón de podio
+  podioButton: {
+    backgroundColor: '#ffd700',
+  },
+  // Estilos del modal de ganadores anuales
+  modalGanadoresOverlay: {
+    flex: 1,
+    backgroundColor: MarioColors.blue,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 50,
+  },
+  modalGanadoresContent: {
+    flex: 1,
+    maxHeight: '100%',
+    width: '100%',
+    margin: 0,
+  },
+  ganadoresScroll: {
+    flex: 1,
+    padding: 12,
+  },
+  anioSection: {
+    marginBottom: 16,
+  },
+  anioSectionHeader: {
+    backgroundColor: '#ffd700',
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: MarioColors.brown,
+  },
+  anioSectionTitle: {
+    color: MarioColors.brown,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  anioSectionIcon: {
+    fontSize: 24,
+  },
+  anioSectionBody: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 3,
+    borderTopWidth: 0,
+    borderColor: MarioColors.brown,
+    padding: 12,
+  },
+  ganadoresTable: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: MarioColors.yellow,
+  },
+  ganadoresTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: MarioColors.red,
+    borderBottomWidth: 2,
+    borderBottomColor: MarioColors.brown,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  ganadoresTableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  ganadoresRowCampeon: {
+    backgroundColor: 'rgba(255,215,0,0.3)',
+    borderBottomWidth: 0,
+  },
+  ganadoresCell: {
+    color: MarioColors.white,
+    fontSize: 14,
+  },
+  ganadoresCellCategoria: {
+    flex: 1.5,
+    fontWeight: 'bold',
+  },
+  ganadoresCellGanador: {
+    flex: 1,
+    textAlign: 'right',
+    color: MarioColors.yellow,
+  },
+  ganadoresCellCampeon: {
+    fontSize: 16,
+    color: '#ffd700',
+    fontWeight: 'bold',
   },
 });

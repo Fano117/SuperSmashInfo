@@ -12,6 +12,91 @@ import {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
+// ============ SERVER HEALTH CHECK ============
+
+export interface ServerStatus {
+  isAwake: boolean;
+  responseTime?: number;
+  error?: string;
+}
+
+// Verificar si el servidor está despierto (para hosts gratuitos que tardan en iniciar)
+export const checkServerHealth = async (timeout: number = 5000): Promise<ServerStatus> => {
+  const startTime = Date.now();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(`${API_URL}/usuarios`, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+
+    if (response.ok) {
+      return { isAwake: true, responseTime };
+    }
+
+    return { isAwake: false, error: `Status: ${response.status}` };
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        return { isAwake: false, error: 'Timeout - servidor iniciando...' };
+      }
+      return { isAwake: false, error: error.message };
+    }
+
+    return { isAwake: false, error: 'Error desconocido' };
+  }
+};
+
+// Esperar a que el servidor despierte con reintentos
+export const waitForServerWake = async (
+  onProgress?: (attempt: number, maxAttempts: number, message: string) => void,
+  maxAttempts: number = 12,
+  intervalMs: number = 3000
+): Promise<boolean> => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const messages = [
+      'Despertando al servidor...',
+      'El servidor está dormido, espera...',
+      'Iniciando servicios...',
+      'Conectando con la base de datos...',
+      'Casi listo...',
+      'Un momento más...',
+      'El servidor es lento pero seguro...',
+      'Paciencia, ya casi...',
+      'Cargando datos...',
+      'Preparando todo...',
+      'Ya mero...',
+      'Último intento...',
+    ];
+
+    const message = messages[Math.min(attempt - 1, messages.length - 1)];
+    onProgress?.(attempt, maxAttempts, message);
+
+    const status = await checkServerHealth(5000);
+
+    if (status.isAwake) {
+      return true;
+    }
+
+    // Esperar antes del siguiente intento (excepto en el último)
+    if (attempt < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  return false;
+};
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
     headers: {
@@ -309,4 +394,49 @@ export const guardarHighscore = (
 // Obtener resumen de highscores de todos los juegos
 export const getResumenHighscores = (): Promise<Record<GameType, Highscore | { puntuacion: number }>> => {
   return fetchApi<Record<GameType, Highscore | { puntuacion: number }>>('/highscores');
+};
+
+// ============ DOJO RIFA ============
+
+export interface DojoRifaResultado {
+  cosa: string;
+  jugador: string;
+}
+
+export interface DojoRifa {
+  _id: string;
+  nombre: string;
+  resultados: DojoRifaResultado[];
+  totalCosas: number;
+  fechaCreacion: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Guardar rifa terminada
+export const guardarDojoRifa = (
+  resultados: DojoRifaResultado[],
+  nombre?: string
+): Promise<{ message: string; rifa: DojoRifa }> => {
+  return fetchApi<{ message: string; rifa: DojoRifa }>('/dojo-rifa', {
+    method: 'POST',
+    body: JSON.stringify({ resultados, nombre }),
+  });
+};
+
+// Obtener última rifa guardada
+export const getUltimaDojoRifa = (): Promise<DojoRifa> => {
+  return fetchApi<DojoRifa>('/dojo-rifa/ultima');
+};
+
+// Obtener historial de rifas
+export const getHistorialDojoRifas = (): Promise<DojoRifa[]> => {
+  return fetchApi<DojoRifa[]>('/dojo-rifa');
+};
+
+// Eliminar una rifa
+export const eliminarDojoRifa = (id: string): Promise<{ message: string }> => {
+  return fetchApi<{ message: string }>(`/dojo-rifa/${id}`, {
+    method: 'DELETE',
+  });
 };

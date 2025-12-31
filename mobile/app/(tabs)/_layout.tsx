@@ -11,7 +11,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     home: '🏠',
     conteo: '📝',
     minijuego: '🎰',
-    tabla: '📊',
+    dojo: '👊',
     banco: '💰',
   };
 
@@ -65,12 +65,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="dojo"
+        options={{
+          title: 'Dojo',
+          headerTitle: 'DOJO DEL NEGRO',
+          headerStyle: { ...styles.header, backgroundColor: '#1a1a1a' },
+          tabBarIcon: ({ focused }) => <TabIcon name="dojo" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="tabla"
         options={{
+          href: null, // Ocultar del tab bar
           title: 'Tabla',
           headerTitle: 'TABLA GLOBAL',
           headerStyle: { ...styles.header, backgroundColor: '#1a1a1a' },
-          tabBarIcon: ({ focused }) => <TabIcon name="tabla" focused={focused} />,
         }}
       />
       <Tabs.Screen
