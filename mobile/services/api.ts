@@ -9,8 +9,12 @@ import {
   PuntosDelta,
   ResumenUsuario
 } from '../types';
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+// Prioridad: variable de entorno > app.json extra > fallback localhost
+const API_URL = process.env.EXPO_PUBLIC_API_URL ||
+  Constants.expoConfig?.extra?.apiUrl ||
+  'http://localhost:3000/api';
 
 // ============ SERVER HEALTH CHECK ============
 

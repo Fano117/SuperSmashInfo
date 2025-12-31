@@ -50,7 +50,8 @@
       "router": {},
       "eas": {
         "projectId": "17506f52-7a7b-4ffd-9df8-594287eab8a0"
-      }
+      },
+      "apiUrl": "https://supersmashinfo.onrender.com/api"
     }
   }
 }
